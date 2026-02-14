@@ -3,6 +3,7 @@ import Foundation
 public struct CPUHistorySnapshot: Sendable, Equatable {
     public let history: [CPULoadSample]
     public let latest: CPULoadSample?
+    public let memoryUsage: MemoryUsageSample?
     public let lastSuccessfulSampleAt: Date?
     public let isStale: Bool
     public let consecutiveFailures: Int
@@ -11,6 +12,7 @@ public struct CPUHistorySnapshot: Sendable, Equatable {
     public init(
         history: [CPULoadSample],
         latest: CPULoadSample?,
+        memoryUsage: MemoryUsageSample?,
         lastSuccessfulSampleAt: Date?,
         isStale: Bool,
         consecutiveFailures: Int,
@@ -18,6 +20,7 @@ public struct CPUHistorySnapshot: Sendable, Equatable {
     ) {
         self.history = history
         self.latest = latest
+        self.memoryUsage = memoryUsage
         self.lastSuccessfulSampleAt = lastSuccessfulSampleAt
         self.isStale = isStale
         self.consecutiveFailures = consecutiveFailures
@@ -37,11 +40,13 @@ public actor CPUHistoryService: CPUHistoryStreaming {
     public static let defaultStaleAfter: Duration = .seconds(5)
 
     private let sampler: any CPULoadSampling
+    private let memorySampler: any MemoryUsageSampling
     private let timeSource: any TimeSource
     private let sampleInterval: Duration
     private let staleAfter: TimeInterval
 
     private var history: HistoryBuffer<CPULoadSample>
+    private var latestMemoryUsage: MemoryUsageSample?
     private var lastSuccessfulSampleAt: Date?
     private var consecutiveFailures = 0
     private var lastErrorDescription: String?
@@ -51,12 +56,14 @@ public actor CPUHistoryService: CPUHistoryStreaming {
 
     public init(
         sampler: any CPULoadSampling,
+        memorySampler: any MemoryUsageSampling = SystemMemoryUsageSampler(),
         historyCapacity: Int = CPUHistoryService.defaultHistoryCapacity,
         sampleInterval: Duration = CPUHistoryService.defaultSampleInterval,
         staleAfter: Duration = CPUHistoryService.defaultStaleAfter,
         timeSource: any TimeSource = SystemTimeSource()
     ) {
         self.sampler = sampler
+        self.memorySampler = memorySampler
         self.history = HistoryBuffer(capacity: historyCapacity)
         self.sampleInterval = sampleInterval
         self.staleAfter = Self.timeInterval(from: staleAfter)
@@ -112,6 +119,10 @@ public actor CPUHistoryService: CPUHistoryStreaming {
             lastErrorDescription = String(describing: error)
         }
 
+        if let memoryUsage = try? memorySampler.sampleUsage() {
+            latestMemoryUsage = memoryUsage
+        }
+
         broadcastSnapshot(at: referenceTime)
     }
 
@@ -144,6 +155,7 @@ public actor CPUHistoryService: CPUHistoryStreaming {
         CPUHistorySnapshot(
             history: history.elements,
             latest: history.latest,
+            memoryUsage: latestMemoryUsage,
             lastSuccessfulSampleAt: lastSuccessfulSampleAt,
             isStale: staleState(at: referenceTime),
             consecutiveFailures: consecutiveFailures,

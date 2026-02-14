@@ -6,6 +6,7 @@ import VitalBarCore
 final class MenuBarViewModel: ObservableObject {
     @Published private(set) var samples: [CPULoadSample] = []
     @Published private(set) var currentUsageText = "--%"
+    @Published private(set) var memoryUsageText = "-- / --"
     @Published private(set) var uptimeText = "--"
     @Published private(set) var isStale = false
     @Published private(set) var staleMessage: String?
@@ -67,6 +68,14 @@ final class MenuBarViewModel: ObservableObject {
         return "\(Int((usage * 100.0).rounded()))%"
     }
 
+    static func memoryFractionText(for sample: MemoryUsageSample?) -> String {
+        guard let sample else {
+            return "-- / --"
+        }
+
+        return "\(formatGigabytes(sample.usedBytes)) / \(formatGigabytes(sample.totalBytes))"
+    }
+
     static func uptimeText(for uptimeSeconds: TimeInterval) -> String {
         guard uptimeSeconds >= 0 else {
             return "--"
@@ -87,6 +96,7 @@ final class MenuBarViewModel: ObservableObject {
     private func apply(_ snapshot: CPUHistorySnapshot) {
         samples = snapshot.history
         currentUsageText = Self.percentText(for: snapshot.latest?.usage)
+        memoryUsageText = Self.memoryFractionText(for: snapshot.memoryUsage)
         uptimeText = Self.uptimeText(for: ProcessInfo.processInfo.systemUptime)
         isStale = snapshot.isStale
 
@@ -100,4 +110,22 @@ final class MenuBarViewModel: ObservableObject {
             staleMessage = nil
         }
     }
+
+    private static func formatGigabytes(_ bytes: UInt64) -> String {
+        let gibibytes = Double(bytes) / 1_073_741_824.0
+        if let formatted = gigabyteFormatter.string(from: NSNumber(value: gibibytes)) {
+            return "\(formatted) GB"
+        }
+
+        return "0.0 GB"
+    }
+
+    private static let gigabyteFormatter: NumberFormatter = {
+        let formatter = NumberFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.numberStyle = .decimal
+        formatter.minimumFractionDigits = 1
+        formatter.maximumFractionDigits = 1
+        return formatter
+    }()
 }

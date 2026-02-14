@@ -72,6 +72,36 @@ actor FakeCPULoadSampler: CPULoadSampling {
     }
 }
 
+final class FakeMemoryUsageSampler: MemoryUsageSampling, @unchecked Sendable {
+    private let lock = NSLock()
+    private var results: [Result<MemoryUsageSample, Error>]
+    private let fallback: Result<MemoryUsageSample, Error>?
+
+    init(
+        results: [Result<MemoryUsageSample, Error>],
+        fallback: Result<MemoryUsageSample, Error>? = nil
+    ) {
+        self.results = results
+        self.fallback = fallback
+    }
+
+    func sampleUsage() throws -> MemoryUsageSample {
+        lock.lock()
+        defer { lock.unlock() }
+
+        let next: Result<MemoryUsageSample, Error>
+        if !results.isEmpty {
+            next = results.removeFirst()
+        } else if let fallback {
+            next = fallback
+        } else {
+            next = .success(MemoryUsageSample(usedBytes: 0, totalBytes: 1))
+        }
+
+        return try next.get()
+    }
+}
+
 enum TestSamplingError: Error {
     case failure
 }

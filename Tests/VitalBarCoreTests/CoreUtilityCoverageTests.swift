@@ -39,4 +39,15 @@ final class CoreUtilityCoverageTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(ticks.idle, 0)
         XCTAssertGreaterThanOrEqual(ticks.nice, 0)
     }
+
+    func testSystemMemoryUsageSamplerReturnsNormalizedUsage() throws {
+        let sampler = SystemMemoryUsageSampler()
+        let sample = try sampler.sampleUsage()
+        let usage = sample.usage
+
+        XCTAssertGreaterThan(sample.totalBytes, 0)
+        XCTAssertLessThanOrEqual(sample.usedBytes, sample.totalBytes)
+        XCTAssertGreaterThanOrEqual(usage, 0.0)
+        XCTAssertLessThanOrEqual(usage, 1.0)
+    }
 }

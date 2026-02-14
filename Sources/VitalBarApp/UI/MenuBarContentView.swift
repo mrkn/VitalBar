@@ -36,6 +36,14 @@ struct MenuBarContentView: View {
             }
 
             HStack {
+                Text("Memory")
+                Spacer()
+                Text(viewModel.memoryUsageText)
+                    .fontWeight(.semibold)
+                    .monospacedDigit()
+            }
+
+            HStack {
                 Text("Uptime")
                     .foregroundStyle(.secondary)
                 Spacer()

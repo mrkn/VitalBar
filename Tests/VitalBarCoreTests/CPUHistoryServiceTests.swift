@@ -11,9 +11,14 @@ final class CPUHistoryServiceTests: XCTestCase {
             .success(CPULoadSample(timestamp: start, usage: 0.2)),
             .success(CPULoadSample(timestamp: start.addingTimeInterval(1), usage: 0.4)),
         ])
+        let memorySampler = FakeMemoryUsageSampler(results: [
+            .success(MemoryUsageSample(usedBytes: 8, totalBytes: 16)),
+            .success(MemoryUsageSample(usedBytes: 10, totalBytes: 16)),
+        ])
 
         let service = CPUHistoryService(
             sampler: sampler,
+            memorySampler: memorySampler,
             historyCapacity: 120,
             sampleInterval: .seconds(10),
             staleAfter: .seconds(5),
@@ -39,8 +44,10 @@ final class CPUHistoryServiceTests: XCTestCase {
         XCTAssertEqual(snapshots.count, 3)
         XCTAssertEqual(snapshots[1].history.count, 1)
         XCTAssertEqual(snapshots[1].latest?.usage ?? -1, 0.2, accuracy: 0.0001)
+        XCTAssertEqual(snapshots[1].memoryUsage, MemoryUsageSample(usedBytes: 8, totalBytes: 16))
         XCTAssertEqual(snapshots[2].history.count, 2)
         XCTAssertEqual(snapshots[2].latest?.usage ?? -1, 0.4, accuracy: 0.0001)
+        XCTAssertEqual(snapshots[2].memoryUsage, MemoryUsageSample(usedBytes: 10, totalBytes: 16))
     }
 
     func testServiceBecomesStaleAfterNoSuccessfulUpdates() async {
@@ -51,9 +58,14 @@ final class CPUHistoryServiceTests: XCTestCase {
             .success(CPULoadSample(timestamp: start, usage: 0.2)),
             .failure(TestSamplingError.failure),
         ])
+        let memorySampler = FakeMemoryUsageSampler(results: [
+            .success(MemoryUsageSample(usedBytes: 4, totalBytes: 10)),
+            .failure(TestSamplingError.failure),
+        ])
 
         let service = CPUHistoryService(
             sampler: sampler,
+            memorySampler: memorySampler,
             historyCapacity: 120,
             sampleInterval: .seconds(10),
             staleAfter: .seconds(5),
@@ -80,6 +92,7 @@ final class CPUHistoryServiceTests: XCTestCase {
         XCTAssertTrue(staleSnapshot.isStale)
         XCTAssertEqual(staleSnapshot.consecutiveFailures, 1)
         XCTAssertNotNil(staleSnapshot.lastErrorDescription)
+        XCTAssertEqual(staleSnapshot.memoryUsage, MemoryUsageSample(usedBytes: 4, totalBytes: 10))
     }
 
     func testStartSchedulesTimerDrivenTicks() async {
@@ -91,9 +104,14 @@ final class CPUHistoryServiceTests: XCTestCase {
             results: [.success(sample)],
             fallback: .success(sample)
         )
+        let memorySampler = FakeMemoryUsageSampler(
+            results: [.success(MemoryUsageSample(usedBytes: 3, totalBytes: 10))],
+            fallback: .success(MemoryUsageSample(usedBytes: 3, totalBytes: 10))
+        )
 
         let service = CPUHistoryService(
             sampler: sampler,
+            memorySampler: memorySampler,
             historyCapacity: 120,
             sampleInterval: .milliseconds(20),
             staleAfter: .seconds(5),
