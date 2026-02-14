@@ -36,10 +36,10 @@ struct MenuBarContentView: View {
             }
 
             HStack {
-                Text("Last update")
+                Text("Uptime")
                     .foregroundStyle(.secondary)
                 Spacer()
-                Text(viewModel.lastUpdatedText)
+                Text(viewModel.uptimeText)
                     .monospacedDigit()
             }
 

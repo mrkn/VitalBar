@@ -6,7 +6,7 @@ import VitalBarCore
 final class MenuBarViewModel: ObservableObject {
     @Published private(set) var samples: [CPULoadSample] = []
     @Published private(set) var currentUsageText = "--%"
-    @Published private(set) var lastUpdatedText = "warming up..."
+    @Published private(set) var uptimeText = "--"
     @Published private(set) var isStale = false
     @Published private(set) var staleMessage: String?
 
@@ -67,16 +67,28 @@ final class MenuBarViewModel: ObservableObject {
         return "\(Int((usage * 100.0).rounded()))%"
     }
 
+    static func uptimeText(for uptimeSeconds: TimeInterval) -> String {
+        guard uptimeSeconds >= 0 else {
+            return "--"
+        }
+
+        let totalSeconds = Int(uptimeSeconds.rounded(.down))
+        let days = totalSeconds / 86_400
+        let hours = (totalSeconds % 86_400) / 3_600
+        let minutes = (totalSeconds % 3_600) / 60
+
+        if days > 0 {
+            return "\(days)d \(hours)h \(minutes)m"
+        }
+
+        return "\(hours)h \(minutes)m"
+    }
+
     private func apply(_ snapshot: CPUHistorySnapshot) {
         samples = snapshot.history
         currentUsageText = Self.percentText(for: snapshot.latest?.usage)
+        uptimeText = Self.uptimeText(for: ProcessInfo.processInfo.systemUptime)
         isStale = snapshot.isStale
-
-        if let lastSuccessfulSampleAt = snapshot.lastSuccessfulSampleAt {
-            lastUpdatedText = Self.timeFormatter.string(from: lastSuccessfulSampleAt)
-        } else {
-            lastUpdatedText = "warming up..."
-        }
 
         if snapshot.isStale {
             if let lastErrorDescription = snapshot.lastErrorDescription {
@@ -88,12 +100,4 @@ final class MenuBarViewModel: ObservableObject {
             staleMessage = nil
         }
     }
-
-    private static let timeFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.locale = .autoupdatingCurrent
-        formatter.timeStyle = .medium
-        formatter.dateStyle = .none
-        return formatter
-    }()
 }

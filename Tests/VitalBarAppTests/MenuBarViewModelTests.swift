@@ -57,6 +57,7 @@ final class MenuBarViewModelTests: XCTestCase {
 
         XCTAssertEqual(viewModel.samples.count, 120)
         XCTAssertEqual(viewModel.currentUsageText, MenuBarViewModel.percentText(for: samples.last?.usage))
+        XCTAssertNotEqual(viewModel.uptimeText, "--")
         viewModel.stop()
     }
 
@@ -91,6 +92,14 @@ final class MenuBarViewModelTests: XCTestCase {
         XCTAssertEqual(MenuBarViewModel.percentText(for: nil), "--%")
         XCTAssertEqual(MenuBarViewModel.percentText(for: 0.424), "42%")
         XCTAssertEqual(MenuBarViewModel.percentText(for: 0.995), "100%")
+    }
+
+    @MainActor
+    func testUptimeTextFormatting() {
+        XCTAssertEqual(MenuBarViewModel.uptimeText(for: -1), "--")
+        XCTAssertEqual(MenuBarViewModel.uptimeText(for: 3599), "0h 59m")
+        XCTAssertEqual(MenuBarViewModel.uptimeText(for: 3661), "1h 1m")
+        XCTAssertEqual(MenuBarViewModel.uptimeText(for: 90_061), "1d 1h 1m")
     }
 
     func testUsageStyleThresholds() {
