@@ -5,8 +5,9 @@ struct MenuBarContentView: View {
     @ObservedObject var viewModel: MenuBarViewModel
 
     var body: some View {
-        let level = UsageStyle.level(for: viewModel.currentUsage, isStale: viewModel.isStale)
-        let color = UsageStyle.color(for: level)
+        let cpuLevel = UsageStyle.level(for: viewModel.currentUsage, isStale: viewModel.isStale)
+        let cpuColor = UsageStyle.color(for: cpuLevel)
+        let memoryPressureColor = UsageStyle.color(for: viewModel.memoryPressureLevel)
 
         VStack(alignment: .leading, spacing: 10) {
             HStack {
@@ -23,7 +24,7 @@ struct MenuBarContentView: View {
                 }
             }
 
-            SparklineView(samples: viewModel.samples, color: color)
+            SparklineView(samples: viewModel.samples, color: cpuColor)
                 .frame(height: 48)
 
             HStack {
@@ -31,15 +32,48 @@ struct MenuBarContentView: View {
                 Spacer()
                 Text(viewModel.currentUsageText)
                     .fontWeight(.semibold)
-                    .foregroundStyle(color)
+                    .foregroundStyle(cpuColor)
                     .monospacedDigit()
             }
 
             HStack {
-                Text("Memory")
+                Text("Memory Used")
                 Spacer()
                 Text(viewModel.memoryUsageText)
                     .fontWeight(.semibold)
+                    .monospacedDigit()
+            }
+
+            HStack {
+                Text("Memory Pressure")
+                Spacer()
+                Text(viewModel.memoryPressureText)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(memoryPressureColor)
+                    .monospacedDigit()
+            }
+
+            HStack {
+                Text("Cached Files")
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text(viewModel.cachedFilesText)
+                    .monospacedDigit()
+            }
+
+            HStack {
+                Text("Compressed")
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text(viewModel.compressedText)
+                    .monospacedDigit()
+            }
+
+            HStack {
+                Text("Swap Used")
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text(viewModel.swapUsedText)
                     .monospacedDigit()
             }
 
@@ -65,6 +99,6 @@ struct MenuBarContentView: View {
             .keyboardShortcut("q", modifiers: [.command])
         }
         .padding(12)
-        .frame(width: 280)
+        .frame(width: 300)
     }
 }

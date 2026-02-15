@@ -7,6 +7,11 @@ final class MenuBarViewModel: ObservableObject {
     @Published private(set) var samples: [CPULoadSample] = []
     @Published private(set) var currentUsageText = "--%"
     @Published private(set) var memoryUsageText = "-- / --"
+    @Published private(set) var memoryPressureText = "--"
+    @Published private(set) var memoryPressureLevel: MemoryPressureLevel?
+    @Published private(set) var cachedFilesText = "--"
+    @Published private(set) var compressedText = "--"
+    @Published private(set) var swapUsedText = "--"
     @Published private(set) var uptimeText = "--"
     @Published private(set) var isStale = false
     @Published private(set) var staleMessage: String?
@@ -76,6 +81,31 @@ final class MenuBarViewModel: ObservableObject {
         return "\(formatGigabytes(sample.usedBytes)) / \(formatGigabytes(sample.totalBytes))"
     }
 
+    static func memoryPressureText(for sample: MemoryUsageSample?) -> String {
+        guard let sample else {
+            return "--"
+        }
+
+        switch sample.pressureLevel {
+        case .normal:
+            return "Normal"
+        case .warning:
+            return "Warning"
+        case .critical:
+            return "Critical"
+        case .unknown:
+            return "Unknown"
+        }
+    }
+
+    static func bytesText(for bytes: UInt64?) -> String {
+        guard let bytes else {
+            return "--"
+        }
+
+        return formatGigabytes(bytes)
+    }
+
     static func uptimeText(for uptimeSeconds: TimeInterval) -> String {
         guard uptimeSeconds >= 0 else {
             return "--"
@@ -97,6 +127,11 @@ final class MenuBarViewModel: ObservableObject {
         samples = snapshot.history
         currentUsageText = Self.percentText(for: snapshot.latest?.usage)
         memoryUsageText = Self.memoryFractionText(for: snapshot.memoryUsage)
+        memoryPressureLevel = snapshot.memoryUsage?.pressureLevel
+        memoryPressureText = Self.memoryPressureText(for: snapshot.memoryUsage)
+        cachedFilesText = Self.bytesText(for: snapshot.memoryUsage?.cachedBytes)
+        compressedText = Self.bytesText(for: snapshot.memoryUsage?.compressedBytes)
+        swapUsedText = Self.bytesText(for: snapshot.memoryUsage?.swapUsedBytes)
         uptimeText = Self.uptimeText(for: ProcessInfo.processInfo.systemUptime)
         isStale = snapshot.isStale
 

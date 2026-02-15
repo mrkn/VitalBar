@@ -57,7 +57,14 @@ final class MenuBarViewModelTests: XCTestCase {
             makeSnapshot(
                 samples: samples,
                 latest: samples.last,
-                memoryUsage: MemoryUsageSample(usedBytes: 8 * gib, totalBytes: 16 * gib)
+                memoryUsage: MemoryUsageSample(
+                    usedBytes: 8 * gib,
+                    totalBytes: 16 * gib,
+                    cachedBytes: 5 * gib,
+                    compressedBytes: 2 * gib,
+                    swapUsedBytes: gib,
+                    pressureLevel: .warning
+                )
             )
         )
         try await Task.sleep(for: .milliseconds(100))
@@ -65,6 +72,10 @@ final class MenuBarViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.samples.count, 120)
         XCTAssertEqual(viewModel.currentUsageText, MenuBarViewModel.percentText(for: samples.last?.usage))
         XCTAssertEqual(viewModel.memoryUsageText, "8.0 GB / 16.0 GB")
+        XCTAssertEqual(viewModel.memoryPressureText, "Warning")
+        XCTAssertEqual(viewModel.cachedFilesText, "5.0 GB")
+        XCTAssertEqual(viewModel.compressedText, "2.0 GB")
+        XCTAssertEqual(viewModel.swapUsedText, "1.0 GB")
         XCTAssertNotEqual(viewModel.uptimeText, "--")
         viewModel.stop()
     }
@@ -81,7 +92,14 @@ final class MenuBarViewModelTests: XCTestCase {
             makeSnapshot(
                 samples: [latest],
                 latest: latest,
-                memoryUsage: MemoryUsageSample(usedBytes: 12 * gib, totalBytes: 16 * gib),
+                memoryUsage: MemoryUsageSample(
+                    usedBytes: 12 * gib,
+                    totalBytes: 16 * gib,
+                    cachedBytes: 2 * gib,
+                    compressedBytes: gib,
+                    swapUsedBytes: 0,
+                    pressureLevel: .normal
+                ),
                 lastSuccessfulSampleAt: base,
                 isStale: true,
                 consecutiveFailures: 3,
@@ -94,6 +112,10 @@ final class MenuBarViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.isStale)
         XCTAssertEqual(viewModel.currentUsageText, "42%")
         XCTAssertEqual(viewModel.memoryUsageText, "12.0 GB / 16.0 GB")
+        XCTAssertEqual(viewModel.memoryPressureText, "Normal")
+        XCTAssertEqual(viewModel.cachedFilesText, "2.0 GB")
+        XCTAssertEqual(viewModel.compressedText, "1.0 GB")
+        XCTAssertEqual(viewModel.swapUsedText, "0.0 GB")
         XCTAssertNotNil(viewModel.staleMessage)
         viewModel.stop()
     }
@@ -124,6 +146,33 @@ final class MenuBarViewModelTests: XCTestCase {
             ),
             "8.0 GB / 16.0 GB"
         )
+    }
+
+    @MainActor
+    func testMemoryPressureFormatting() {
+        let gib = UInt64(1_073_741_824)
+
+        XCTAssertEqual(MenuBarViewModel.memoryPressureText(for: nil), "--")
+        XCTAssertEqual(
+            MenuBarViewModel.memoryPressureText(
+                for: MemoryUsageSample(usedBytes: 8 * gib, totalBytes: 16 * gib, pressureLevel: .normal)
+            ),
+            "Normal"
+        )
+        XCTAssertEqual(
+            MenuBarViewModel.memoryPressureText(
+                for: MemoryUsageSample(usedBytes: 8 * gib, totalBytes: 16 * gib, pressureLevel: .critical)
+            ),
+            "Critical"
+        )
+    }
+
+    @MainActor
+    func testBytesFormatting() {
+        let gib = UInt64(1_073_741_824)
+
+        XCTAssertEqual(MenuBarViewModel.bytesText(for: nil), "--")
+        XCTAssertEqual(MenuBarViewModel.bytesText(for: 3 * gib), "3.0 GB")
     }
 
     func testUsageStyleThresholds() {

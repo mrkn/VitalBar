@@ -1,4 +1,5 @@
 import SwiftUI
+import VitalBarCore
 
 enum UsageLevel: Equatable {
     case unknown
@@ -40,6 +41,23 @@ struct UsageStyle {
             return .red
         case .stale:
             return .orange
+        }
+    }
+
+    static func color(for pressureLevel: MemoryPressureLevel?) -> Color {
+        guard let pressureLevel else {
+            return .secondary
+        }
+
+        switch pressureLevel {
+        case .normal:
+            return .green
+        case .warning:
+            return .yellow
+        case .critical:
+            return .red
+        case .unknown:
+            return .secondary
         }
     }
 }

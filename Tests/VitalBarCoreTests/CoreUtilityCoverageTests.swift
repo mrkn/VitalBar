@@ -47,7 +47,42 @@ final class CoreUtilityCoverageTests: XCTestCase {
 
         XCTAssertGreaterThan(sample.totalBytes, 0)
         XCTAssertLessThanOrEqual(sample.usedBytes, sample.totalBytes)
+        XCTAssertLessThanOrEqual(sample.cachedBytes, sample.totalBytes)
+        XCTAssertLessThanOrEqual(sample.compressedBytes, sample.totalBytes)
+        XCTAssertGreaterThanOrEqual(sample.swapUsedBytes, 0)
         XCTAssertGreaterThanOrEqual(usage, 0.0)
         XCTAssertLessThanOrEqual(usage, 1.0)
+    }
+
+    func testMemoryUsageSampleStoresExtendedValues() {
+        let sample = MemoryUsageSample(
+            usedBytes: 10,
+            totalBytes: 16,
+            cachedBytes: 3,
+            compressedBytes: 2,
+            swapUsedBytes: 1,
+            pressureLevel: .warning
+        )
+
+        XCTAssertEqual(sample.usedBytes, 10)
+        XCTAssertEqual(sample.totalBytes, 16)
+        XCTAssertEqual(sample.cachedBytes, 3)
+        XCTAssertEqual(sample.compressedBytes, 2)
+        XCTAssertEqual(sample.swapUsedBytes, 1)
+        XCTAssertEqual(sample.pressureLevel, .warning)
+        XCTAssertEqual(sample.usage, 0.625, accuracy: 0.0001)
+    }
+
+    func testUsedPagesIncludesCompressedPages() {
+        let usedPages = SystemMemoryUsageSampler.usedPagesIncludingCompressed(
+            activePages: 1_000,
+            purgeablePages: 200,
+            externalPages: 100,
+            wiredPages: 300,
+            compressedPages: 150
+        )
+
+        // (active - purgeable - external) + wired + compressed
+        XCTAssertEqual(usedPages, 1_150)
     }
 }
