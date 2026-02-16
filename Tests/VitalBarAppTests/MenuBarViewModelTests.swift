@@ -60,6 +60,8 @@ final class MenuBarViewModelTests: XCTestCase {
                 memoryUsage: MemoryUsageSample(
                     usedBytes: 8 * gib,
                     totalBytes: 16 * gib,
+                    appBytes: 4 * gib,
+                    wiredBytes: 2 * gib,
                     cachedBytes: 5 * gib,
                     compressedBytes: 2 * gib,
                     swapUsedBytes: gib,
@@ -73,6 +75,8 @@ final class MenuBarViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.currentUsageText, MenuBarViewModel.percentText(for: samples.last?.usage))
         XCTAssertEqual(viewModel.memoryUsageText, "8.0 GB / 16.0 GB")
         XCTAssertEqual(viewModel.memoryPressureText, "Warning")
+        XCTAssertEqual(viewModel.appMemoryText, "4.0 GB")
+        XCTAssertEqual(viewModel.wiredMemoryText, "2.0 GB")
         XCTAssertEqual(viewModel.cachedFilesText, "5.0 GB")
         XCTAssertEqual(viewModel.compressedText, "2.0 GB")
         XCTAssertEqual(viewModel.swapUsedText, "1.0 GB")
@@ -95,6 +99,8 @@ final class MenuBarViewModelTests: XCTestCase {
                 memoryUsage: MemoryUsageSample(
                     usedBytes: 12 * gib,
                     totalBytes: 16 * gib,
+                    appBytes: 6 * gib,
+                    wiredBytes: 3 * gib,
                     cachedBytes: 2 * gib,
                     compressedBytes: gib,
                     swapUsedBytes: 0,
@@ -113,6 +119,8 @@ final class MenuBarViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.currentUsageText, "42%")
         XCTAssertEqual(viewModel.memoryUsageText, "12.0 GB / 16.0 GB")
         XCTAssertEqual(viewModel.memoryPressureText, "Normal")
+        XCTAssertEqual(viewModel.appMemoryText, "6.0 GB")
+        XCTAssertEqual(viewModel.wiredMemoryText, "3.0 GB")
         XCTAssertEqual(viewModel.cachedFilesText, "2.0 GB")
         XCTAssertEqual(viewModel.compressedText, "1.0 GB")
         XCTAssertEqual(viewModel.swapUsedText, "0.0 GB")

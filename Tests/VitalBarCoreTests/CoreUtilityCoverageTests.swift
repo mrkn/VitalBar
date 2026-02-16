@@ -58,6 +58,8 @@ final class CoreUtilityCoverageTests: XCTestCase {
         let sample = MemoryUsageSample(
             usedBytes: 10,
             totalBytes: 16,
+            appBytes: 4,
+            wiredBytes: 3,
             cachedBytes: 3,
             compressedBytes: 2,
             swapUsedBytes: 1,
@@ -66,6 +68,8 @@ final class CoreUtilityCoverageTests: XCTestCase {
 
         XCTAssertEqual(sample.usedBytes, 10)
         XCTAssertEqual(sample.totalBytes, 16)
+        XCTAssertEqual(sample.appBytes, 4)
+        XCTAssertEqual(sample.wiredBytes, 3)
         XCTAssertEqual(sample.cachedBytes, 3)
         XCTAssertEqual(sample.compressedBytes, 2)
         XCTAssertEqual(sample.swapUsedBytes, 1)
@@ -75,14 +79,29 @@ final class CoreUtilityCoverageTests: XCTestCase {
 
     func testUsedPagesIncludesCompressedPages() {
         let usedPages = SystemMemoryUsageSampler.usedPagesIncludingCompressed(
-            activePages: 1_000,
-            purgeablePages: 200,
-            externalPages: 100,
+            appPages: 700,
             wiredPages: 300,
             compressedPages: 150
         )
 
-        // (active - purgeable - external) + wired + compressed
+        // app + wired + compressed
         XCTAssertEqual(usedPages, 1_150)
+    }
+
+    func testAppMemoryPagesUsesInternalPages() {
+        let appPages = SystemMemoryUsageSampler.appMemoryPages(
+            internalPages: 764_497
+        )
+
+        XCTAssertEqual(appPages, 764_497)
+    }
+
+    func testCachedPagesUsesFileBackedAndPurgeable() {
+        let cachedPages = SystemMemoryUsageSampler.cachedPages(
+            fileBackedPages: 226_829,
+            purgeablePages: 20_415
+        )
+
+        XCTAssertEqual(cachedPages, 247_244)
     }
 }

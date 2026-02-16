@@ -7,7 +7,7 @@ The v1 implementation focuses on CPU load history only.
 
 - Menu-bar-only app (`LSUIElement` behavior).
 - CPU load sampling every second.
-- Current memory display with `used / total`, pressure, cached files, compressed, and swap used.
+- Current memory display with `used / total`, app memory, wired memory, pressure, cached files, compressed, and swap used.
 - Last 120 samples (2 minutes) shown as a sparkline + current percentage.
 - Stale state after 5 seconds without successful sampling.
 - Core logic and ViewModel tests.

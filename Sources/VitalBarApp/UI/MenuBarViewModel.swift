@@ -9,6 +9,8 @@ final class MenuBarViewModel: ObservableObject {
     @Published private(set) var memoryUsageText = "-- / --"
     @Published private(set) var memoryPressureText = "--"
     @Published private(set) var memoryPressureLevel: MemoryPressureLevel?
+    @Published private(set) var appMemoryText = "--"
+    @Published private(set) var wiredMemoryText = "--"
     @Published private(set) var cachedFilesText = "--"
     @Published private(set) var compressedText = "--"
     @Published private(set) var swapUsedText = "--"
@@ -129,6 +131,8 @@ final class MenuBarViewModel: ObservableObject {
         memoryUsageText = Self.memoryFractionText(for: snapshot.memoryUsage)
         memoryPressureLevel = snapshot.memoryUsage?.pressureLevel
         memoryPressureText = Self.memoryPressureText(for: snapshot.memoryUsage)
+        appMemoryText = Self.bytesText(for: snapshot.memoryUsage?.appBytes)
+        wiredMemoryText = Self.bytesText(for: snapshot.memoryUsage?.wiredBytes)
         cachedFilesText = Self.bytesText(for: snapshot.memoryUsage?.cachedBytes)
         compressedText = Self.bytesText(for: snapshot.memoryUsage?.compressedBytes)
         swapUsedText = Self.bytesText(for: snapshot.memoryUsage?.swapUsedBytes)

@@ -45,6 +45,22 @@ struct MenuBarContentView: View {
             }
 
             HStack {
+                Text("App Memory")
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text(viewModel.appMemoryText)
+                    .monospacedDigit()
+            }
+
+            HStack {
+                Text("Wired Memory")
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text(viewModel.wiredMemoryText)
+                    .monospacedDigit()
+            }
+
+            HStack {
                 Text("Memory Pressure")
                 Spacer()
                 Text(viewModel.memoryPressureText)
