@@ -31,6 +31,8 @@ swift run VitalBarApp
 
 ```bash
 make help
+make icon
+make icon-candidates
 make build
 make run
 make test

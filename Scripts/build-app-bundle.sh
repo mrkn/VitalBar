@@ -6,6 +6,8 @@ OUTPUT_DIR="${2:-dist}"
 APP_NAME="VitalBar"
 EXECUTABLE_NAME="VitalBarApp"
 BUNDLE_ID="io.github.mrkn.VitalBar"
+ICON_FILE_NAME="AppIcon.icns"
+ICON_SOURCE_PATH="Assets/${ICON_FILE_NAME}"
 
 export SWIFTPM_MODULECACHE_OVERRIDE="${PWD}/.build/modulecache"
 export CLANG_MODULE_CACHE_PATH="${PWD}/.build/clang-module-cache"
@@ -22,6 +24,16 @@ mkdir -p "${MACOS_DIR}" "${RESOURCES_DIR}"
 
 cp ".build/release/${EXECUTABLE_NAME}" "${MACOS_DIR}/${EXECUTABLE_NAME}"
 chmod +x "${MACOS_DIR}/${EXECUTABLE_NAME}"
+
+ICON_PLIST_ENTRY=""
+if [[ -f "${ICON_SOURCE_PATH}" ]]; then
+    cp "${ICON_SOURCE_PATH}" "${RESOURCES_DIR}/${ICON_FILE_NAME}"
+    ICON_PLIST_ENTRY=$(cat <<PLIST
+    <key>CFBundleIconFile</key>
+    <string>${ICON_FILE_NAME}</string>
+PLIST
+)
+fi
 
 cat > "${CONTENTS_DIR}/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -46,6 +58,7 @@ cat > "${CONTENTS_DIR}/Info.plist" <<PLIST
     <string>${VERSION}</string>
     <key>CFBundleVersion</key>
     <string>${VERSION}</string>
+${ICON_PLIST_ENTRY}
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
     <key>LSUIElement</key>
