@@ -61,22 +61,22 @@ private struct CPUAreaSparklineView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                if samples.isEmpty {
-                    RoundedRectangle(cornerRadius: 2)
-                        .stroke(.secondary.opacity(0.55), style: StrokeStyle(lineWidth: 1, dash: [2, 2]))
+                RoundedRectangle(cornerRadius: 2)
+                    .stroke(.primary.opacity(0.35), lineWidth: 1)
 
+                if samples.isEmpty {
                     Path { path in
                         let midY = geometry.size.height / 2
                         path.move(to: CGPoint(x: 1, y: midY))
                         path.addLine(to: CGPoint(x: max(1, geometry.size.width - 1), y: midY))
                     }
-                    .stroke(.secondary.opacity(0.5), style: StrokeStyle(lineWidth: 1, lineCap: .round))
+                    .stroke(.primary.opacity(0.55), style: StrokeStyle(lineWidth: 1, lineCap: .round, dash: [2, 2]))
                 } else {
                     areaPath(in: geometry.size)
-                        .fill(color.opacity(0.25))
+                        .fill(color.opacity(0.35))
 
                     sparklinePath(in: geometry.size)
-                        .stroke(color, style: StrokeStyle(lineWidth: 1.2, lineCap: .round, lineJoin: .round))
+                        .stroke(color, style: StrokeStyle(lineWidth: 1.4, lineCap: .round, lineJoin: .round))
                 }
             }
         }
@@ -94,7 +94,7 @@ private struct CPUAreaSparklineView: View {
 
         for (index, sample) in samples.enumerated() {
             let x = CGFloat(index) * stepX
-            let y = size.height - (size.height * CGFloat(sample.usage))
+            let y = max(1, min(size.height - 1, size.height - (size.height * CGFloat(sample.usage))))
 
             if index == 0 {
                 path.move(to: CGPoint(x: x, y: y))
@@ -130,10 +130,10 @@ private struct MemoryStackedSparklineView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                if samples.isEmpty {
-                    RoundedRectangle(cornerRadius: 2)
-                        .stroke(.secondary.opacity(0.55), style: StrokeStyle(lineWidth: 1, dash: [2, 2]))
+                RoundedRectangle(cornerRadius: 2)
+                    .stroke(.primary.opacity(0.35), lineWidth: 1)
 
+                if samples.isEmpty {
                     Path { path in
                         let oneThirdY = geometry.size.height / 3
                         let twoThirdsY = geometry.size.height * 2 / 3
@@ -142,20 +142,20 @@ private struct MemoryStackedSparklineView: View {
                         path.move(to: CGPoint(x: 1, y: twoThirdsY))
                         path.addLine(to: CGPoint(x: max(1, geometry.size.width - 1), y: twoThirdsY))
                     }
-                    .stroke(.secondary.opacity(0.45), style: StrokeStyle(lineWidth: 1, lineCap: .round))
+                    .stroke(.primary.opacity(0.5), style: StrokeStyle(lineWidth: 1, lineCap: .round, dash: [2, 2]))
                 } else {
                     stackedPath(in: geometry.size, upper: { $0.cachedRatio }, lower: { _ in 0.0 })
-                        .fill(cachedColor)
+                        .fill(cachedColor.opacity(0.9))
 
                     stackedPath(in: geometry.size, upper: { $0.cachedRatio + $0.wiredRatio }, lower: { $0.cachedRatio })
-                        .fill(wiredColor)
+                        .fill(wiredColor.opacity(0.9))
 
                     stackedPath(
                         in: geometry.size,
                         upper: { $0.cachedRatio + $0.wiredRatio + $0.appRatio },
                         lower: { $0.cachedRatio + $0.wiredRatio }
                     )
-                    .fill(appColor)
+                    .fill(appColor.opacity(0.95))
                 }
             }
         }
