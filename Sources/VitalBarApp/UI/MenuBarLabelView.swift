@@ -61,11 +61,23 @@ private struct CPUAreaSparklineView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                areaPath(in: geometry.size)
-                    .fill(color.opacity(0.25))
+                if samples.isEmpty {
+                    RoundedRectangle(cornerRadius: 2)
+                        .stroke(.secondary.opacity(0.55), style: StrokeStyle(lineWidth: 1, dash: [2, 2]))
 
-                sparklinePath(in: geometry.size)
-                    .stroke(color, style: StrokeStyle(lineWidth: 1.2, lineCap: .round, lineJoin: .round))
+                    Path { path in
+                        let midY = geometry.size.height / 2
+                        path.move(to: CGPoint(x: 1, y: midY))
+                        path.addLine(to: CGPoint(x: max(1, geometry.size.width - 1), y: midY))
+                    }
+                    .stroke(.secondary.opacity(0.5), style: StrokeStyle(lineWidth: 1, lineCap: .round))
+                } else {
+                    areaPath(in: geometry.size)
+                        .fill(color.opacity(0.25))
+
+                    sparklinePath(in: geometry.size)
+                        .stroke(color, style: StrokeStyle(lineWidth: 1.2, lineCap: .round, lineJoin: .round))
+                }
             }
         }
         .accessibilityHidden(true)
@@ -118,18 +130,33 @@ private struct MemoryStackedSparklineView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                stackedPath(in: geometry.size, upper: { $0.cachedRatio }, lower: { _ in 0.0 })
-                    .fill(cachedColor)
+                if samples.isEmpty {
+                    RoundedRectangle(cornerRadius: 2)
+                        .stroke(.secondary.opacity(0.55), style: StrokeStyle(lineWidth: 1, dash: [2, 2]))
 
-                stackedPath(in: geometry.size, upper: { $0.cachedRatio + $0.wiredRatio }, lower: { $0.cachedRatio })
-                    .fill(wiredColor)
+                    Path { path in
+                        let oneThirdY = geometry.size.height / 3
+                        let twoThirdsY = geometry.size.height * 2 / 3
+                        path.move(to: CGPoint(x: 1, y: oneThirdY))
+                        path.addLine(to: CGPoint(x: max(1, geometry.size.width - 1), y: oneThirdY))
+                        path.move(to: CGPoint(x: 1, y: twoThirdsY))
+                        path.addLine(to: CGPoint(x: max(1, geometry.size.width - 1), y: twoThirdsY))
+                    }
+                    .stroke(.secondary.opacity(0.45), style: StrokeStyle(lineWidth: 1, lineCap: .round))
+                } else {
+                    stackedPath(in: geometry.size, upper: { $0.cachedRatio }, lower: { _ in 0.0 })
+                        .fill(cachedColor)
 
-                stackedPath(
-                    in: geometry.size,
-                    upper: { $0.cachedRatio + $0.wiredRatio + $0.appRatio },
-                    lower: { $0.cachedRatio + $0.wiredRatio }
-                )
-                .fill(appColor)
+                    stackedPath(in: geometry.size, upper: { $0.cachedRatio + $0.wiredRatio }, lower: { $0.cachedRatio })
+                        .fill(wiredColor)
+
+                    stackedPath(
+                        in: geometry.size,
+                        upper: { $0.cachedRatio + $0.wiredRatio + $0.appRatio },
+                        lower: { $0.cachedRatio + $0.wiredRatio }
+                    )
+                    .fill(appColor)
+                }
             }
         }
         .accessibilityHidden(true)
