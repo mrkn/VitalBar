@@ -3,6 +3,7 @@ import SwiftUI
 
 struct MenuBarContentView: View {
     @ObservedObject var viewModel: MenuBarViewModel
+    private static let legendMarkerSize: CGFloat = 7
 
     var body: some View {
         let cpuLevel = UsageStyle.level(for: viewModel.currentUsage, isStale: viewModel.isStale)
@@ -54,8 +55,7 @@ struct MenuBarContentView: View {
             }
 
             HStack(spacing: 4) {
-                Text("■")
-                    .foregroundStyle(Color.blue.opacity(0.9))
+                legendMarker(Color.blue.opacity(0.9))
                 Text("App Memory")
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -64,8 +64,7 @@ struct MenuBarContentView: View {
             }
 
             HStack(spacing: 4) {
-                Text("■")
-                    .foregroundStyle(Color.orange.opacity(0.9))
+                legendMarker(Color.orange.opacity(0.9))
                 Text("Wired Memory")
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -74,8 +73,7 @@ struct MenuBarContentView: View {
             }
 
             HStack(spacing: 4) {
-                Text("■")
-                    .foregroundStyle(Color.teal.opacity(0.85))
+                legendMarker(Color.teal.opacity(0.85))
                 Text("Cached Files")
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -84,8 +82,7 @@ struct MenuBarContentView: View {
             }
 
             HStack(spacing: 4) {
-                Text("■")
-                    .hidden()
+                legendMarker(.clear)
                 Text("Compressed")
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -94,8 +91,7 @@ struct MenuBarContentView: View {
             }
 
             HStack(spacing: 4) {
-                Text("■")
-                    .hidden()
+                legendMarker(.clear)
                 Text("Swap Used")
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -134,5 +130,12 @@ struct MenuBarContentView: View {
         }
         .padding(12)
         .frame(width: 300)
+    }
+
+    private func legendMarker(_ color: Color) -> some View {
+        Circle()
+            .fill(color)
+            .frame(width: Self.legendMarkerSize, height: Self.legendMarkerSize)
+            .accessibilityHidden(true)
     }
 }
