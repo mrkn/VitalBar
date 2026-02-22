@@ -23,8 +23,9 @@ struct VitalBarApp: App {
             MenuBarContentView(viewModel: viewModel)
         } label: {
             MenuBarLabelView(
-                samples: viewModel.samples,
-                usageText: viewModel.currentUsageText,
+                cpuSamples: viewModel.samples,
+                memorySamples: viewModel.memoryHistory,
+                diskSamples: viewModel.diskUsageHistory,
                 isStale: viewModel.isStale
             )
         }

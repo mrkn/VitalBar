@@ -208,10 +208,41 @@ final class MenuBarViewModelTests: XCTestCase {
     }
 
     @MainActor
-    func testMenuBarLabelSparklineDimensions() {
-        XCTAssertEqual(MenuBarLabelView.sparklineWidth, 42)
-        XCTAssertEqual(MenuBarLabelView.sparklineHeight, 12)
+    func testMenuBarLabelGraphDimensions() {
+        XCTAssertEqual(MenuBarLabelView.cpuGraphWidth, 34)
+        XCTAssertEqual(MenuBarLabelView.memoryGraphWidth, 34)
+        XCTAssertEqual(MenuBarLabelView.diskGraphWidth, 8)
+        XCTAssertEqual(MenuBarLabelView.graphHeight, 12)
     }
+    @MainActor
+    func testViewModelTracksCompactGraphHistories() async throws {
+        let service = MockCPUHistoryService(initialSnapshot: makeSnapshot())
+        let viewModel = MenuBarViewModel(service: service)
+        let gib = UInt64(1_073_741_824)
+
+        for index in 0..<45 {
+            await service.emit(
+                makeSnapshot(
+                    memoryUsage: MemoryUsageSample(
+                        usedBytes: 8 * gib,
+                        totalBytes: 16 * gib,
+                        appBytes: UInt64(index + 1) * 100_000_000,
+                        wiredBytes: UInt64(index + 1) * 50_000_000,
+                        cachedBytes: UInt64(index + 1) * 25_000_000
+                    ),
+                    diskUsage: DiskUsageSample(usedBytes: UInt64(index + 1), totalBytes: 100)
+                )
+            )
+        }
+
+        try await Task.sleep(for: .milliseconds(100))
+
+        XCTAssertEqual(viewModel.memoryHistory.count, 40)
+        XCTAssertEqual(viewModel.diskUsageHistory.count, 40)
+        XCTAssertEqual(viewModel.diskUsageHistory.last, 0.45, accuracy: 0.0001)
+        viewModel.stop()
+    }
+
 
     private func makeSnapshot(
         samples: [CPULoadSample] = [],
