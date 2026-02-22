@@ -28,6 +28,14 @@ struct MenuBarContentView: View {
                 .frame(height: 48)
 
             HStack {
+                Text("Disk Used")
+                Spacer()
+                Text(viewModel.diskUsageText)
+                    .fontWeight(.semibold)
+                    .monospacedDigit()
+            }
+
+            HStack {
                 Text("Current CPU")
                 Spacer()
                 Text(viewModel.currentUsageText)

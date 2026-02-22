@@ -40,6 +40,25 @@ final class CoreUtilityCoverageTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(ticks.nice, 0)
     }
 
+
+    func testDiskUsageSampleStoresValues() {
+        let sample = DiskUsageSample(usedBytes: 412, totalBytes: 1_000)
+
+        XCTAssertEqual(sample.usedBytes, 412)
+        XCTAssertEqual(sample.totalBytes, 1_000)
+        XCTAssertEqual(sample.usage, 0.412, accuracy: 0.0001)
+    }
+
+    func testSystemDiskUsageSamplerReturnsNormalizedUsage() throws {
+        let sampler = SystemDiskUsageSampler()
+        let sample = try sampler.sampleUsage()
+
+        XCTAssertGreaterThan(sample.totalBytes, 0)
+        XCTAssertLessThanOrEqual(sample.usedBytes, sample.totalBytes)
+        XCTAssertGreaterThanOrEqual(sample.usage, 0.0)
+        XCTAssertLessThanOrEqual(sample.usage, 1.0)
+    }
+
     func testSystemMemoryUsageSamplerReturnsNormalizedUsage() throws {
         let sampler = SystemMemoryUsageSampler()
         let sample = try sampler.sampleUsage()
