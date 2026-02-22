@@ -18,6 +18,13 @@ struct MenuBarLabelView: View {
     let diskSamples: [Double]
     let isStale: Bool
 
+    private var accessibilityValue: String {
+        let cpuText = percentText(cpuSamples.last?.usage)
+        let memoryText = percentText(memorySamples.last.map { $0.appRatio + $0.wiredRatio + $0.cachedRatio })
+        let diskText = diskSamples.last.map(percentText) ?? "Unknown"
+        return "CPU \(cpuText), Memory \(memoryText), Disk \(diskText)"
+    }
+
     var body: some View {
         let cpuLevel = UsageStyle.level(for: cpuSamples.last?.usage, isStale: isStale)
         let cpuColor = UsageStyle.color(for: cpuLevel)
@@ -32,8 +39,18 @@ struct MenuBarLabelView: View {
             DiskUsageBarView(samples: Array(diskSamples.suffix(40)), isStale: isStale)
                 .frame(width: Self.diskGraphWidth, height: Self.graphHeight)
         }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("CPU, memory, and disk usage")
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("System usage")
+        .accessibilityValue(accessibilityValue)
+    }
+
+    private func percentText(_ value: Double?) -> String {
+        guard let value else {
+            return "Unknown"
+        }
+
+        let clamped = min(max(value, 0.0), 1.0)
+        return "\(Int((clamped * 100.0).rounded()))%"
     }
 }
 
@@ -43,16 +60,12 @@ private struct CPUAreaSparklineView: View {
 
     var body: some View {
         GeometryReader { geometry in
-            Canvas { context, _ in
-                let linePath = sparklinePath(in: geometry.size)
-                let areaPath = areaPath(in: geometry.size)
+            ZStack {
+                areaPath(in: geometry.size)
+                    .fill(color.opacity(0.25))
 
-                context.fill(areaPath, with: .color(color.opacity(0.25)))
-                context.stroke(
-                    linePath,
-                    with: .color(color),
-                    style: StrokeStyle(lineWidth: 1.2, lineCap: .round, lineJoin: .round)
-                )
+                sparklinePath(in: geometry.size)
+                    .stroke(color, style: StrokeStyle(lineWidth: 1.2, lineCap: .round, lineJoin: .round))
             }
         }
         .accessibilityHidden(true)
@@ -104,18 +117,19 @@ private struct MemoryStackedSparklineView: View {
 
     var body: some View {
         GeometryReader { geometry in
-            Canvas { context, _ in
-                let cachedPath = stackedPath(in: geometry.size, upper: { $0.cachedRatio }, lower: { _ in 0.0 })
-                let wiredPath = stackedPath(in: geometry.size, upper: { $0.cachedRatio + $0.wiredRatio }, lower: { $0.cachedRatio })
-                let appPath = stackedPath(
+            ZStack {
+                stackedPath(in: geometry.size, upper: { $0.cachedRatio }, lower: { _ in 0.0 })
+                    .fill(cachedColor)
+
+                stackedPath(in: geometry.size, upper: { $0.cachedRatio + $0.wiredRatio }, lower: { $0.cachedRatio })
+                    .fill(wiredColor)
+
+                stackedPath(
                     in: geometry.size,
                     upper: { $0.cachedRatio + $0.wiredRatio + $0.appRatio },
                     lower: { $0.cachedRatio + $0.wiredRatio }
                 )
-
-                context.fill(cachedPath, with: .color(cachedColor))
-                context.fill(wiredPath, with: .color(wiredColor))
-                context.fill(appPath, with: .color(appColor))
+                .fill(appColor)
             }
         }
         .accessibilityHidden(true)
@@ -166,22 +180,24 @@ private struct DiskUsageBarView: View {
 
     var body: some View {
         GeometryReader { geometry in
-            Canvas { context, _ in
-                let usage = samples.last ?? 0.0
-                let ratio = min(max(usage, 0.0), 1.0)
-                let fillHeight = geometry.size.height * CGFloat(ratio)
-                let barRect = CGRect(
-                    x: 0,
-                    y: geometry.size.height - fillHeight,
-                    width: geometry.size.width,
-                    height: fillHeight
-                )
+            let usage = samples.last
+            let color: Color = isStale ? .secondary : .purple
 
-                let border = RoundedRectangle(cornerRadius: 2)
-                let color: Color = isStale ? .secondary : .purple
+            ZStack(alignment: .bottom) {
+                RoundedRectangle(cornerRadius: 2)
+                    .stroke(color.opacity(0.9), lineWidth: 1)
 
-                context.fill(Path(barRect), with: .color(color.opacity(0.65)))
-                context.stroke(border.path(in: CGRect(origin: .zero, size: geometry.size)), with: .color(color.opacity(0.9)), lineWidth: 1)
+                if let usage {
+                    let ratio = min(max(usage, 0.0), 1.0)
+                    RoundedRectangle(cornerRadius: 1.5)
+                        .fill(color.opacity(0.65))
+                        .frame(height: geometry.size.height * CGFloat(ratio))
+                } else {
+                    Rectangle()
+                        .fill(color.opacity(0.35))
+                        .frame(width: geometry.size.width - 2, height: 1)
+                        .padding(.bottom, geometry.size.height / 2)
+                }
             }
         }
         .accessibilityHidden(true)
