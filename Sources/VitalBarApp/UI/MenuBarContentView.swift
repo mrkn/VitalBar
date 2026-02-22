@@ -83,7 +83,9 @@ struct MenuBarContentView: View {
                     .monospacedDigit()
             }
 
-            HStack {
+            HStack(spacing: 4) {
+                Text("■")
+                    .hidden()
                 Text("Compressed")
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -91,7 +93,9 @@ struct MenuBarContentView: View {
                     .monospacedDigit()
             }
 
-            HStack {
+            HStack(spacing: 4) {
+                Text("■")
+                    .hidden()
                 Text("Swap Used")
                     .foregroundStyle(.secondary)
                 Spacer()
