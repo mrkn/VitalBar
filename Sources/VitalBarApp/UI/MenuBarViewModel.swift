@@ -173,7 +173,7 @@ final class MenuBarViewModel: ObservableObject {
         let formatter = NumberFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.numberStyle = .decimal
-        formatter.minimumFractionDigits = value < 10 && unitIndex > 0 ? 1 : 0
+        formatter.minimumFractionDigits = 0
         formatter.maximumFractionDigits = value < 10 && unitIndex > 0 ? 1 : 0
         let numberText = formatter.string(from: NSNumber(value: value)) ?? "0"
         return "\(numberText)\(units[unitIndex])"
