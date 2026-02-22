@@ -6,6 +6,7 @@ import VitalBarCore
 final class MenuBarViewModel: ObservableObject {
     @Published private(set) var samples: [CPULoadSample] = []
     @Published private(set) var currentUsageText = "--%"
+    @Published private(set) var diskUsageText = "N/A"
     @Published private(set) var memoryUsageText = "-- / --"
     @Published private(set) var memoryPressureText = "--"
     @Published private(set) var memoryPressureLevel: MemoryPressureLevel?
@@ -83,6 +84,14 @@ final class MenuBarViewModel: ObservableObject {
         return "\(formatGigabytes(sample.usedBytes)) / \(formatGigabytes(sample.totalBytes))"
     }
 
+    static func diskUsageText(for sample: DiskUsageSample?) -> String {
+        guard let sample else {
+            return "N/A"
+        }
+
+        return "\(formatStorage(sample.usedBytes)) / \(formatStorage(sample.totalBytes)) (\(percentText(for: sample.usage)))"
+    }
+
     static func memoryPressureText(for sample: MemoryUsageSample?) -> String {
         guard let sample else {
             return "--"
@@ -129,6 +138,7 @@ final class MenuBarViewModel: ObservableObject {
         samples = snapshot.history
         currentUsageText = Self.percentText(for: snapshot.latest?.usage)
         memoryUsageText = Self.memoryFractionText(for: snapshot.memoryUsage)
+        diskUsageText = Self.diskUsageText(for: snapshot.diskUsage)
         memoryPressureLevel = snapshot.memoryUsage?.pressureLevel
         memoryPressureText = Self.memoryPressureText(for: snapshot.memoryUsage)
         appMemoryText = Self.bytesText(for: snapshot.memoryUsage?.appBytes)
@@ -148,6 +158,26 @@ final class MenuBarViewModel: ObservableObject {
         } else {
             staleMessage = nil
         }
+    }
+
+    private static func formatStorage(_ bytes: UInt64) -> String {
+        let units = ["B", "KB", "MB", "GB", "TB", "PB"]
+        var value = Double(bytes)
+        var unitIndex = 0
+
+        while value >= 1000.0, unitIndex < units.count - 1 {
+            value /= 1000.0
+            unitIndex += 1
+        }
+
+        let formatter = NumberFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.numberStyle = .decimal
+        formatter.minimumFractionDigits = 0
+        let isIntegralValue = abs(value.rounded() - value) < 0.000_001
+        formatter.maximumFractionDigits = value < 10 && unitIndex > 0 && !isIntegralValue ? 1 : 0
+        let numberText = formatter.string(from: NSNumber(value: value)) ?? "0"
+        return "\(numberText)\(units[unitIndex])"
     }
 
     private static func formatGigabytes(_ bytes: UInt64) -> String {

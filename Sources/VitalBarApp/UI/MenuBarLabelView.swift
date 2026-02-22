@@ -22,6 +22,6 @@ struct MenuBarLabelView: View {
                 .monospacedDigit()
                 .foregroundStyle(color)
         }
-        .frame(minWidth: 76)
+        
     }
 }

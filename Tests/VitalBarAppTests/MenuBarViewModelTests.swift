@@ -66,13 +66,15 @@ final class MenuBarViewModelTests: XCTestCase {
                     compressedBytes: 2 * gib,
                     swapUsedBytes: gib,
                     pressureLevel: .warning
-                )
+                ),
+                diskUsage: DiskUsageSample(usedBytes: 412_000_000_000, totalBytes: 1_000_000_000_000)
             )
         )
         try await Task.sleep(for: .milliseconds(100))
 
         XCTAssertEqual(viewModel.samples.count, 120)
         XCTAssertEqual(viewModel.currentUsageText, MenuBarViewModel.percentText(for: samples.last?.usage))
+        XCTAssertEqual(viewModel.diskUsageText, "412GB / 1TB (41%)")
         XCTAssertEqual(viewModel.memoryUsageText, "8.0 GB / 16.0 GB")
         XCTAssertEqual(viewModel.memoryPressureText, "Warning")
         XCTAssertEqual(viewModel.appMemoryText, "4.0 GB")
@@ -106,6 +108,7 @@ final class MenuBarViewModelTests: XCTestCase {
                     swapUsedBytes: 0,
                     pressureLevel: .normal
                 ),
+                diskUsage: DiskUsageSample(usedBytes: 0, totalBytes: 0),
                 lastSuccessfulSampleAt: base,
                 isStale: true,
                 consecutiveFailures: 3,
@@ -117,6 +120,7 @@ final class MenuBarViewModelTests: XCTestCase {
 
         XCTAssertTrue(viewModel.isStale)
         XCTAssertEqual(viewModel.currentUsageText, "42%")
+        XCTAssertEqual(viewModel.diskUsageText, "0B / 0B (0%)")
         XCTAssertEqual(viewModel.memoryUsageText, "12.0 GB / 16.0 GB")
         XCTAssertEqual(viewModel.memoryPressureText, "Normal")
         XCTAssertEqual(viewModel.appMemoryText, "6.0 GB")
@@ -153,6 +157,18 @@ final class MenuBarViewModelTests: XCTestCase {
                 for: MemoryUsageSample(usedBytes: 8 * gib, totalBytes: 16 * gib)
             ),
             "8.0 GB / 16.0 GB"
+        )
+    }
+
+
+    @MainActor
+    func testDiskUsageFormatting() {
+        XCTAssertEqual(MenuBarViewModel.diskUsageText(for: nil), "N/A")
+        XCTAssertEqual(
+            MenuBarViewModel.diskUsageText(
+                for: DiskUsageSample(usedBytes: 412_000_000_000, totalBytes: 1_000_000_000_000)
+            ),
+            "412GB / 1TB (41%)"
         )
     }
 
@@ -201,6 +217,7 @@ final class MenuBarViewModelTests: XCTestCase {
         samples: [CPULoadSample] = [],
         latest: CPULoadSample? = nil,
         memoryUsage: MemoryUsageSample? = nil,
+        diskUsage: DiskUsageSample? = nil,
         lastSuccessfulSampleAt: Date? = nil,
         isStale: Bool = false,
         consecutiveFailures: Int = 0,
@@ -210,6 +227,7 @@ final class MenuBarViewModelTests: XCTestCase {
             history: samples,
             latest: latest,
             memoryUsage: memoryUsage,
+            diskUsage: diskUsage,
             lastSuccessfulSampleAt: lastSuccessfulSampleAt,
             isStale: isStale,
             consecutiveFailures: consecutiveFailures,

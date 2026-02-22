@@ -94,6 +94,14 @@ struct MenuBarContentView: View {
             }
 
             HStack {
+                Text("Disk Usage")
+                Spacer()
+                Text(viewModel.diskUsageText)
+                    .fontWeight(.semibold)
+                    .monospacedDigit()
+            }
+
+            HStack {
                 Text("Uptime")
                     .foregroundStyle(.secondary)
                 Spacer()
