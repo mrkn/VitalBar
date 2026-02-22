@@ -3,6 +3,11 @@ import SwiftUI
 
 struct MenuBarContentView: View {
     @ObservedObject var viewModel: MenuBarViewModel
+    @AppStorage("menuBarLabelRenderer") private var menuBarLabelRendererRawValue = MenuBarLabelRenderer.vector.rawValue
+
+    private var selectedRenderer: MenuBarLabelRenderer {
+        MenuBarLabelRenderer(rawValue: menuBarLabelRendererRawValue) ?? .vector
+    }
 
     var body: some View {
         let cpuLevel = UsageStyle.level(for: viewModel.currentUsage, isStale: viewModel.isStale)
@@ -35,6 +40,22 @@ struct MenuBarContentView: View {
                     .foregroundStyle(cpuColor)
                     .monospacedDigit()
             }
+
+            HStack(alignment: .firstTextBaseline) {
+                Text("Label Renderer")
+                Spacer()
+                Picker("Label Renderer", selection: $menuBarLabelRendererRawValue) {
+                    ForEach(MenuBarLabelRenderer.allCases) { renderer in
+                        Text(renderer.title).tag(renderer.rawValue)
+                    }
+                }
+                .labelsHidden()
+                .frame(width: 125)
+            }
+
+            Text("Current: \(selectedRenderer.title)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
 
             HStack {
                 Text("Memory Used")

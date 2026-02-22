@@ -212,7 +212,7 @@ final class MenuBarViewModelTests: XCTestCase {
         XCTAssertEqual(MenuBarLabelView.cpuGraphWidth, 34)
         XCTAssertEqual(MenuBarLabelView.memoryGraphWidth, 34)
         XCTAssertEqual(MenuBarLabelView.diskGraphWidth, 8)
-        XCTAssertEqual(MenuBarLabelView.graphHeight, 12)
+        XCTAssertEqual(MenuBarLabelView.graphHeight, 18)
     }
     @MainActor
     func testViewModelTracksCompactGraphHistories() async throws {
