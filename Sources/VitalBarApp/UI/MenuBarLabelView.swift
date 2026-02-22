@@ -21,21 +21,6 @@ struct MenuBarLabelView: View {
     let memorySamples: [MemoryCompositionPoint]
     let diskSamples: [Double]
     let isStale: Bool
-    let renderer: MenuBarLabelRenderer
-
-    init(
-        cpuSamples: [CPULoadSample],
-        memorySamples: [MemoryCompositionPoint],
-        diskSamples: [Double],
-        isStale: Bool,
-        renderer: MenuBarLabelRenderer = .vector
-    ) {
-        self.cpuSamples = cpuSamples
-        self.memorySamples = memorySamples
-        self.diskSamples = diskSamples
-        self.isStale = isStale
-        self.renderer = renderer
-    }
 
     private var accessibilityValue: String {
         let cpuText = percentText(cpuSamples.last?.usage)
@@ -45,14 +30,7 @@ struct MenuBarLabelView: View {
     }
 
     var body: some View {
-        Group {
-            switch renderer {
-            case .vector:
-                vectorGraphs
-            case .image:
-                imageGraphs
-            }
-        }
+        imageGraphs
         .accessibilityElement(children: .combine)
         .accessibilityLabel("System usage")
         .accessibilityValue(accessibilityValue)
