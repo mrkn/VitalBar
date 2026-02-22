@@ -27,6 +27,15 @@ struct MenuBarContentView: View {
 
             SparklineView(samples: viewModel.samples, color: cpuColor)
                 .frame(height: 48)
+                .padding(6)
+                .background {
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(Color(nsColor: .controlBackgroundColor))
+                }
+                .overlay {
+                    RoundedRectangle(cornerRadius: 6)
+                        .strokeBorder(Color.secondary.opacity(0.35), lineWidth: 1)
+                }
 
             HStack {
                 Text("Current CPU")
