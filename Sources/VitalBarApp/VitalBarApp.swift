@@ -24,7 +24,7 @@ struct VitalBarApp: App {
         } label: {
             MenuBarLabelView(
                 samples: viewModel.samples,
-                usageText: viewModel.diskUsageText,
+                usageText: viewModel.currentUsageText,
                 isStale: viewModel.isStale
             )
         }
