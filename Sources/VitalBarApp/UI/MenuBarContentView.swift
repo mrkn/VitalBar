@@ -3,6 +3,7 @@ import SwiftUI
 
 struct MenuBarContentView: View {
     @ObservedObject var viewModel: MenuBarViewModel
+    private static let legendMarkerSize: CGFloat = 7
 
     var body: some View {
         let cpuLevel = UsageStyle.level(for: viewModel.currentUsage, isStale: viewModel.isStale)
@@ -45,22 +46,6 @@ struct MenuBarContentView: View {
             }
 
             HStack {
-                Text("App Memory")
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Text(viewModel.appMemoryText)
-                    .monospacedDigit()
-            }
-
-            HStack {
-                Text("Wired Memory")
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Text(viewModel.wiredMemoryText)
-                    .monospacedDigit()
-            }
-
-            HStack {
                 Text("Memory Pressure")
                 Spacer()
                 Text(viewModel.memoryPressureText)
@@ -69,7 +54,26 @@ struct MenuBarContentView: View {
                     .monospacedDigit()
             }
 
-            HStack {
+            HStack(spacing: 4) {
+                legendMarker(Color.blue.opacity(0.9))
+                Text("App Memory")
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text(viewModel.appMemoryText)
+                    .monospacedDigit()
+            }
+
+            HStack(spacing: 4) {
+                legendMarker(Color.orange.opacity(0.9))
+                Text("Wired Memory")
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text(viewModel.wiredMemoryText)
+                    .monospacedDigit()
+            }
+
+            HStack(spacing: 4) {
+                legendMarker(Color.teal.opacity(0.85))
                 Text("Cached Files")
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -77,7 +81,8 @@ struct MenuBarContentView: View {
                     .monospacedDigit()
             }
 
-            HStack {
+            HStack(spacing: 4) {
+                legendMarker(.clear)
                 Text("Compressed")
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -85,7 +90,8 @@ struct MenuBarContentView: View {
                     .monospacedDigit()
             }
 
-            HStack {
+            HStack(spacing: 4) {
+                legendMarker(.clear)
                 Text("Swap Used")
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -124,5 +130,12 @@ struct MenuBarContentView: View {
         }
         .padding(12)
         .frame(width: 300)
+    }
+
+    private func legendMarker(_ color: Color) -> some View {
+        Circle()
+            .fill(color)
+            .frame(width: Self.legendMarkerSize, height: Self.legendMarkerSize)
+            .accessibilityHidden(true)
     }
 }
