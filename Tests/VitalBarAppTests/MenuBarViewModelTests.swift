@@ -74,6 +74,7 @@ final class MenuBarViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.samples.count, 120)
         XCTAssertEqual(viewModel.currentUsageText, MenuBarViewModel.percentText(for: samples.last?.usage))
         XCTAssertEqual(viewModel.memoryUsageText, "8.0 GB / 16.0 GB")
+        XCTAssertEqual(viewModel.memoryUsagePercentText, "50%")
         XCTAssertEqual(viewModel.memoryPressureText, "Warning")
         XCTAssertEqual(viewModel.appMemoryText, "4.0 GB")
         XCTAssertEqual(viewModel.wiredMemoryText, "2.0 GB")
@@ -118,6 +119,7 @@ final class MenuBarViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.isStale)
         XCTAssertEqual(viewModel.currentUsageText, "42%")
         XCTAssertEqual(viewModel.memoryUsageText, "12.0 GB / 16.0 GB")
+        XCTAssertEqual(viewModel.memoryUsagePercentText, "75%")
         XCTAssertEqual(viewModel.memoryPressureText, "Normal")
         XCTAssertEqual(viewModel.appMemoryText, "6.0 GB")
         XCTAssertEqual(viewModel.wiredMemoryText, "3.0 GB")
@@ -153,6 +155,25 @@ final class MenuBarViewModelTests: XCTestCase {
                 for: MemoryUsageSample(usedBytes: 8 * gib, totalBytes: 16 * gib)
             ),
             "8.0 GB / 16.0 GB"
+        )
+    }
+
+    @MainActor
+    func testMemoryUsagePercentFormatting() {
+        let gib = UInt64(1_073_741_824)
+
+        XCTAssertEqual(MenuBarViewModel.memoryUsagePercentText(for: nil), "--%")
+        XCTAssertEqual(
+            MenuBarViewModel.memoryUsagePercentText(
+                for: MemoryUsageSample(usedBytes: 3 * gib, totalBytes: 8 * gib)
+            ),
+            "38%"
+        )
+        XCTAssertEqual(
+            MenuBarViewModel.memoryUsagePercentText(
+                for: MemoryUsageSample(usedBytes: 5 * gib, totalBytes: 0)
+            ),
+            "--%"
         )
     }
 

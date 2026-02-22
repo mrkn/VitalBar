@@ -7,6 +7,7 @@ final class MenuBarViewModel: ObservableObject {
     @Published private(set) var samples: [CPULoadSample] = []
     @Published private(set) var currentUsageText = "--%"
     @Published private(set) var memoryUsageText = "-- / --"
+    @Published private(set) var memoryUsagePercentText = "--%"
     @Published private(set) var memoryPressureText = "--"
     @Published private(set) var memoryPressureLevel: MemoryPressureLevel?
     @Published private(set) var appMemoryText = "--"
@@ -100,6 +101,15 @@ final class MenuBarViewModel: ObservableObject {
         }
     }
 
+    static func memoryUsagePercentText(for sample: MemoryUsageSample?) -> String {
+        guard let sample, sample.totalBytes > 0 else {
+            return "--%"
+        }
+
+        let usage = Double(sample.usedBytes) / Double(sample.totalBytes)
+        return percentText(for: usage)
+    }
+
     static func bytesText(for bytes: UInt64?) -> String {
         guard let bytes else {
             return "--"
@@ -129,6 +139,7 @@ final class MenuBarViewModel: ObservableObject {
         samples = snapshot.history
         currentUsageText = Self.percentText(for: snapshot.latest?.usage)
         memoryUsageText = Self.memoryFractionText(for: snapshot.memoryUsage)
+        memoryUsagePercentText = Self.memoryUsagePercentText(for: snapshot.memoryUsage)
         memoryPressureLevel = snapshot.memoryUsage?.pressureLevel
         memoryPressureText = Self.memoryPressureText(for: snapshot.memoryUsage)
         appMemoryText = Self.bytesText(for: snapshot.memoryUsage?.appBytes)

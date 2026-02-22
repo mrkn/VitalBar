@@ -39,9 +39,14 @@ struct MenuBarContentView: View {
             HStack {
                 Text("Memory Used")
                 Spacer()
-                Text(viewModel.memoryUsageText)
-                    .fontWeight(.semibold)
-                    .monospacedDigit()
+
+                HStack(spacing: 8) {
+                    Text(viewModel.memoryUsageText)
+                    Text("(\(viewModel.memoryUsagePercentText))")
+                        .foregroundStyle(.secondary)
+                }
+                .fontWeight(.semibold)
+                .monospacedDigit()
             }
 
             HStack {
