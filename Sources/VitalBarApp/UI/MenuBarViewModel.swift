@@ -5,6 +5,8 @@ import VitalBarCore
 @MainActor
 final class MenuBarViewModel: ObservableObject {
     @Published private(set) var samples: [CPULoadSample] = []
+    @Published private(set) var memoryHistory: [MemoryCompositionPoint] = []
+    @Published private(set) var diskUsageHistory: [Double] = []
     @Published private(set) var currentUsageText = "--%"
     @Published private(set) var diskUsageText = "N/A"
     @Published private(set) var memoryUsageText = "-- / --"
@@ -21,6 +23,7 @@ final class MenuBarViewModel: ObservableObject {
 
     private let service: any CPUHistoryStreaming
     private var streamTask: Task<Void, Never>?
+    private let graphHistoryLimit = 40
 
     init(service: any CPUHistoryStreaming) {
         self.service = service
@@ -136,6 +139,8 @@ final class MenuBarViewModel: ObservableObject {
 
     private func apply(_ snapshot: CPUHistorySnapshot) {
         samples = snapshot.history
+        appendMemorySample(snapshot.memoryUsage)
+        appendDiskSample(snapshot.diskUsage)
         currentUsageText = Self.percentText(for: snapshot.latest?.usage)
         memoryUsageText = Self.memoryFractionText(for: snapshot.memoryUsage)
         diskUsageText = Self.diskUsageText(for: snapshot.diskUsage)
@@ -157,6 +162,41 @@ final class MenuBarViewModel: ObservableObject {
             }
         } else {
             staleMessage = nil
+        }
+    }
+
+    private func appendMemorySample(_ sample: MemoryUsageSample?) {
+        guard let sample, sample.totalBytes > 0 else {
+            return
+        }
+
+        let total = Double(sample.totalBytes)
+        let appRatio = Double(sample.appBytes) / total
+        let wiredRatio = Double(sample.wiredBytes) / total
+        let cachedRatio = Double(sample.cachedBytes) / total
+        memoryHistory.append(
+            MemoryCompositionPoint(
+                appRatio: appRatio,
+                wiredRatio: wiredRatio,
+                cachedRatio: cachedRatio
+            )
+        )
+
+        trimHistory(&memoryHistory)
+    }
+
+    private func appendDiskSample(_ sample: DiskUsageSample?) {
+        guard let sample else {
+            return
+        }
+
+        diskUsageHistory.append(sample.usage)
+        trimHistory(&diskUsageHistory)
+    }
+
+    private func trimHistory<T>(_ values: inout [T]) {
+        if values.count > graphHistoryLimit {
+            values.removeFirst(values.count - graphHistoryLimit)
         }
     }
 
