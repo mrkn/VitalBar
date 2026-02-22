@@ -45,22 +45,6 @@ struct MenuBarContentView: View {
             }
 
             HStack {
-                Text("App Memory")
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Text(viewModel.appMemoryText)
-                    .monospacedDigit()
-            }
-
-            HStack {
-                Text("Wired Memory")
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Text(viewModel.wiredMemoryText)
-                    .monospacedDigit()
-            }
-
-            HStack {
                 Text("Memory Pressure")
                 Spacer()
                 Text(viewModel.memoryPressureText)
@@ -69,7 +53,29 @@ struct MenuBarContentView: View {
                     .monospacedDigit()
             }
 
-            HStack {
+            HStack(spacing: 4) {
+                Text("■")
+                    .foregroundStyle(Color.blue.opacity(0.9))
+                Text("App Memory")
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text(viewModel.appMemoryText)
+                    .monospacedDigit()
+            }
+
+            HStack(spacing: 4) {
+                Text("■")
+                    .foregroundStyle(Color.orange.opacity(0.9))
+                Text("Wired Memory")
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text(viewModel.wiredMemoryText)
+                    .monospacedDigit()
+            }
+
+            HStack(spacing: 4) {
+                Text("■")
+                    .foregroundStyle(Color.teal.opacity(0.85))
                 Text("Cached Files")
                     .foregroundStyle(.secondary)
                 Spacer()
