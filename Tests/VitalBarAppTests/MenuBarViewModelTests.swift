@@ -239,7 +239,8 @@ final class MenuBarViewModelTests: XCTestCase {
 
         XCTAssertEqual(viewModel.memoryHistory.count, 40)
         XCTAssertEqual(viewModel.diskUsageHistory.count, 40)
-        XCTAssertEqual(viewModel.diskUsageHistory.last, 0.45, accuracy: 0.0001)
+        let lastDiskUsage = try XCTUnwrap(viewModel.diskUsageHistory.last)
+        XCTAssertEqual(lastDiskUsage, 0.45, accuracy: 0.0001)
         viewModel.stop()
     }
 
