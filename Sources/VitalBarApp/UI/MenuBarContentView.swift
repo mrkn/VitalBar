@@ -118,9 +118,9 @@ struct MenuBarContentView: View {
 
             HStack {
                 Text("Uptime")
-                    .foregroundStyle(.secondary)
                 Spacer()
                 Text(viewModel.uptimeText)
+                    .fontWeight(.semibold)
                     .monospacedDigit()
             }
 
