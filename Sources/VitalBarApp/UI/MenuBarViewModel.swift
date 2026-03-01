@@ -17,6 +17,7 @@ final class MenuBarViewModel: ObservableObject {
     @Published private(set) var cachedFilesText = "--"
     @Published private(set) var compressedText = "--"
     @Published private(set) var swapUsedText = "--"
+    @Published private(set) var temperatureReadings: [TemperatureSensorReading] = []
     @Published private(set) var uptimeText = "--"
     @Published private(set) var isStale = false
     @Published private(set) var staleMessage: String?
@@ -120,6 +121,38 @@ final class MenuBarViewModel: ObservableObject {
         return formatGigabytes(bytes)
     }
 
+    static func temperatureText(for celsius: Double?) -> String {
+        guard let celsius else {
+            return "N/A"
+        }
+
+        if let formatted = temperatureFormatter.string(from: NSNumber(value: celsius)) {
+            return "\(formatted)°C"
+        }
+
+        return "N/A"
+    }
+
+    static func cpuSoCTemperatureText(for readings: [TemperatureSensorReading]) -> String? {
+        let cpu = temperatureReading(for: cpuTemperatureID, in: readings)
+        let soc = temperatureReading(for: socTemperatureID, in: readings)
+
+        switch (cpu, soc) {
+        case let (cpu?, soc?):
+            return "\(temperatureText(for: cpu.celsius)) / \(temperatureText(for: soc.celsius))"
+        case let (cpu?, nil):
+            return temperatureText(for: cpu.celsius)
+        case let (nil, soc?):
+            return temperatureText(for: soc.celsius)
+        case (nil, nil):
+            return nil
+        }
+    }
+
+    static func shouldShowTemperatureDetails(for readings: [TemperatureSensorReading]) -> Bool {
+        readings.contains { !summaryTemperatureIDs.contains($0.id) }
+    }
+
     static func uptimeText(for uptimeSeconds: TimeInterval) -> String {
         guard uptimeSeconds >= 0 else {
             return "--"
@@ -151,6 +184,7 @@ final class MenuBarViewModel: ObservableObject {
         cachedFilesText = Self.bytesText(for: snapshot.memoryUsage?.cachedBytes)
         compressedText = Self.bytesText(for: snapshot.memoryUsage?.compressedBytes)
         swapUsedText = Self.bytesText(for: snapshot.memoryUsage?.swapUsedBytes)
+        temperatureReadings = snapshot.temperatures
         uptimeText = Self.uptimeText(for: ProcessInfo.processInfo.systemUptime)
         isStale = snapshot.isStale
 
@@ -200,6 +234,17 @@ final class MenuBarViewModel: ObservableObject {
         }
     }
 
+    private static func temperatureReading(
+        for id: String,
+        in readings: [TemperatureSensorReading]
+    ) -> TemperatureSensorReading? {
+        readings.first { $0.id == id }
+    }
+
+    private static let cpuTemperatureID = "cpu"
+    private static let socTemperatureID = "soc"
+    private static let summaryTemperatureIDs: Set<String> = [cpuTemperatureID, socTemperatureID]
+
     private static func formatStorage(_ bytes: UInt64) -> String {
         let units = ["B", "KB", "MB", "GB", "TB", "PB"]
         var value = Double(bytes)
@@ -230,6 +275,15 @@ final class MenuBarViewModel: ObservableObject {
     }
 
     private static let gigabyteFormatter: NumberFormatter = {
+        let formatter = NumberFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.numberStyle = .decimal
+        formatter.minimumFractionDigits = 1
+        formatter.maximumFractionDigits = 1
+        return formatter
+    }()
+
+    private static let temperatureFormatter: NumberFormatter = {
         let formatter = NumberFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.numberStyle = .decimal

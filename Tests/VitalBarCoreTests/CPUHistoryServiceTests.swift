@@ -15,10 +15,20 @@ final class CPUHistoryServiceTests: XCTestCase {
             .success(MemoryUsageSample(usedBytes: 8, totalBytes: 16)),
             .success(MemoryUsageSample(usedBytes: 10, totalBytes: 16)),
         ])
+        let temperatureSampler = FakeTemperatureSampler(results: [
+            .success([
+                TemperatureSensorReading(id: "cpu", name: "CPU Temperature", celsius: 58.5),
+            ]),
+            .success([
+                TemperatureSensorReading(id: "cpu", name: "CPU Temperature", celsius: 60.0),
+                TemperatureSensorReading(id: "gpu", name: "GPU Temperature", celsius: 57.0),
+            ]),
+        ])
 
         let service = CPUHistoryService(
             sampler: sampler,
             memorySampler: memorySampler,
+            temperatureSampler: temperatureSampler,
             historyCapacity: 120,
             sampleInterval: .seconds(10),
             staleAfter: .seconds(5),
@@ -45,9 +55,20 @@ final class CPUHistoryServiceTests: XCTestCase {
         XCTAssertEqual(snapshots[1].history.count, 1)
         XCTAssertEqual(snapshots[1].latest?.usage ?? -1, 0.2, accuracy: 0.0001)
         XCTAssertEqual(snapshots[1].memoryUsage, MemoryUsageSample(usedBytes: 8, totalBytes: 16))
+        XCTAssertEqual(
+            snapshots[1].temperatures,
+            [TemperatureSensorReading(id: "cpu", name: "CPU Temperature", celsius: 58.5)]
+        )
         XCTAssertEqual(snapshots[2].history.count, 2)
         XCTAssertEqual(snapshots[2].latest?.usage ?? -1, 0.4, accuracy: 0.0001)
         XCTAssertEqual(snapshots[2].memoryUsage, MemoryUsageSample(usedBytes: 10, totalBytes: 16))
+        XCTAssertEqual(
+            snapshots[2].temperatures,
+            [
+                TemperatureSensorReading(id: "cpu", name: "CPU Temperature", celsius: 60.0),
+                TemperatureSensorReading(id: "gpu", name: "GPU Temperature", celsius: 57.0),
+            ]
+        )
     }
 
     func testServiceBecomesStaleAfterNoSuccessfulUpdates() async {
@@ -62,10 +83,17 @@ final class CPUHistoryServiceTests: XCTestCase {
             .success(MemoryUsageSample(usedBytes: 4, totalBytes: 10)),
             .failure(TestSamplingError.failure),
         ])
+        let temperatureSampler = FakeTemperatureSampler(results: [
+            .success([
+                TemperatureSensorReading(id: "cpu", name: "CPU Temperature", celsius: 52.0),
+            ]),
+            .failure(TestSamplingError.failure),
+        ])
 
         let service = CPUHistoryService(
             sampler: sampler,
             memorySampler: memorySampler,
+            temperatureSampler: temperatureSampler,
             historyCapacity: 120,
             sampleInterval: .seconds(10),
             staleAfter: .seconds(5),
@@ -93,6 +121,10 @@ final class CPUHistoryServiceTests: XCTestCase {
         XCTAssertEqual(staleSnapshot.consecutiveFailures, 1)
         XCTAssertNotNil(staleSnapshot.lastErrorDescription)
         XCTAssertEqual(staleSnapshot.memoryUsage, MemoryUsageSample(usedBytes: 4, totalBytes: 10))
+        XCTAssertEqual(
+            staleSnapshot.temperatures,
+            [TemperatureSensorReading(id: "cpu", name: "CPU Temperature", celsius: 52.0)]
+        )
     }
 
     func testStartSchedulesTimerDrivenTicks() async {
@@ -108,10 +140,15 @@ final class CPUHistoryServiceTests: XCTestCase {
             results: [.success(MemoryUsageSample(usedBytes: 3, totalBytes: 10))],
             fallback: .success(MemoryUsageSample(usedBytes: 3, totalBytes: 10))
         )
+        let temperatureSampler = FakeTemperatureSampler(
+            results: [.success([TemperatureSensorReading(id: "cpu", name: "CPU Temperature", celsius: 61.0)])],
+            fallback: .success([TemperatureSensorReading(id: "cpu", name: "CPU Temperature", celsius: 61.0)])
+        )
 
         let service = CPUHistoryService(
             sampler: sampler,
             memorySampler: memorySampler,
+            temperatureSampler: temperatureSampler,
             historyCapacity: 120,
             sampleInterval: .milliseconds(20),
             staleAfter: .seconds(5),

@@ -67,7 +67,11 @@ final class MenuBarViewModelTests: XCTestCase {
                     swapUsedBytes: gib,
                     pressureLevel: .warning
                 ),
-                diskUsage: DiskUsageSample(usedBytes: 412_000_000_000, totalBytes: 1_000_000_000_000)
+                diskUsage: DiskUsageSample(usedBytes: 412_000_000_000, totalBytes: 1_000_000_000_000),
+                temperatures: [
+                    TemperatureSensorReading(id: "cpu", name: "CPU Temperature", celsius: 63.2),
+                    TemperatureSensorReading(id: "gpu", name: "GPU Temperature", celsius: 58.0),
+                ]
             )
         )
         try await Task.sleep(for: .milliseconds(100))
@@ -82,6 +86,9 @@ final class MenuBarViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.cachedFilesText, "5.0 GB")
         XCTAssertEqual(viewModel.compressedText, "2.0 GB")
         XCTAssertEqual(viewModel.swapUsedText, "1.0 GB")
+        XCTAssertEqual(viewModel.temperatureReadings.count, 2)
+        XCTAssertEqual(viewModel.temperatureReadings[0].id, "cpu")
+        XCTAssertEqual(viewModel.temperatureReadings[0].celsius, 63.2, accuracy: 0.0001)
         XCTAssertNotEqual(viewModel.uptimeText, "--")
         viewModel.stop()
     }
@@ -109,6 +116,9 @@ final class MenuBarViewModelTests: XCTestCase {
                     pressureLevel: .normal
                 ),
                 diskUsage: DiskUsageSample(usedBytes: 0, totalBytes: 0),
+                temperatures: [
+                    TemperatureSensorReading(id: "cpu", name: "CPU Temperature", celsius: 55.5),
+                ],
                 lastSuccessfulSampleAt: base,
                 isStale: true,
                 consecutiveFailures: 3,
@@ -128,6 +138,9 @@ final class MenuBarViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.cachedFilesText, "2.0 GB")
         XCTAssertEqual(viewModel.compressedText, "1.0 GB")
         XCTAssertEqual(viewModel.swapUsedText, "0.0 GB")
+        XCTAssertEqual(viewModel.temperatureReadings.count, 1)
+        XCTAssertEqual(viewModel.temperatureReadings[0].id, "cpu")
+        XCTAssertEqual(viewModel.temperatureReadings[0].celsius, 55.5, accuracy: 0.0001)
         XCTAssertNotNil(viewModel.staleMessage)
         viewModel.stop()
     }
@@ -199,6 +212,51 @@ final class MenuBarViewModelTests: XCTestCase {
         XCTAssertEqual(MenuBarViewModel.bytesText(for: 3 * gib), "3.0 GB")
     }
 
+    @MainActor
+    func testTemperatureFormatting() {
+        XCTAssertEqual(MenuBarViewModel.temperatureText(for: nil), "N/A")
+        XCTAssertEqual(MenuBarViewModel.temperatureText(for: 60.0), "60.0°C")
+        XCTAssertEqual(MenuBarViewModel.temperatureText(for: 48.26), "48.3°C")
+    }
+
+    @MainActor
+    func testCPUAndSoCTemperatureSummaryFormatting() {
+        XCTAssertNil(MenuBarViewModel.cpuSoCTemperatureText(for: []))
+
+        let cpuOnly = [TemperatureSensorReading(id: "cpu", name: "CPU Temperature", celsius: 60.0)]
+        XCTAssertEqual(MenuBarViewModel.cpuSoCTemperatureText(for: cpuOnly), "60.0°C")
+
+        let socOnly = [TemperatureSensorReading(id: "soc", name: "SoC Temperature", celsius: 37.5)]
+        XCTAssertEqual(MenuBarViewModel.cpuSoCTemperatureText(for: socOnly), "37.5°C")
+
+        let cpuAndSoc = [
+            TemperatureSensorReading(id: "soc", name: "SoC Temperature", celsius: 37.5),
+            TemperatureSensorReading(id: "cpu", name: "CPU Temperature", celsius: 35.3),
+            TemperatureSensorReading(id: "gpu", name: "GPU Temperature", celsius: 33.0),
+        ]
+        XCTAssertEqual(MenuBarViewModel.cpuSoCTemperatureText(for: cpuAndSoc), "35.3°C / 37.5°C")
+    }
+
+    @MainActor
+    func testTemperatureDetailMenuVisibility() {
+        XCTAssertFalse(MenuBarViewModel.shouldShowTemperatureDetails(for: []))
+
+        let cpuAndSoc = [
+            TemperatureSensorReading(id: "cpu", name: "CPU Temperature", celsius: 35.3),
+            TemperatureSensorReading(id: "soc", name: "SoC Temperature", celsius: 37.5),
+        ]
+        XCTAssertFalse(MenuBarViewModel.shouldShowTemperatureDetails(for: cpuAndSoc))
+
+        let gpuOnly = [TemperatureSensorReading(id: "gpu", name: "GPU Temperature", celsius: 45.0)]
+        XCTAssertTrue(MenuBarViewModel.shouldShowTemperatureDetails(for: gpuOnly))
+
+        let cpuAndGpu = [
+            TemperatureSensorReading(id: "cpu", name: "CPU Temperature", celsius: 35.3),
+            TemperatureSensorReading(id: "gpu", name: "GPU Temperature", celsius: 45.0),
+        ]
+        XCTAssertTrue(MenuBarViewModel.shouldShowTemperatureDetails(for: cpuAndGpu))
+    }
+
     func testUsageStyleThresholds() {
         XCTAssertEqual(UsageStyle.level(for: nil, isStale: false), .unknown)
         XCTAssertEqual(UsageStyle.level(for: 0.10, isStale: false), .idle)
@@ -250,6 +308,7 @@ final class MenuBarViewModelTests: XCTestCase {
         latest: CPULoadSample? = nil,
         memoryUsage: MemoryUsageSample? = nil,
         diskUsage: DiskUsageSample? = nil,
+        temperatures: [TemperatureSensorReading] = [],
         lastSuccessfulSampleAt: Date? = nil,
         isStale: Bool = false,
         consecutiveFailures: Int = 0,
@@ -260,6 +319,7 @@ final class MenuBarViewModelTests: XCTestCase {
             latest: latest,
             memoryUsage: memoryUsage,
             diskUsage: diskUsage,
+            temperatures: temperatures,
             lastSuccessfulSampleAt: lastSuccessfulSampleAt,
             isStale: isStale,
             consecutiveFailures: consecutiveFailures,

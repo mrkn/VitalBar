@@ -10,6 +10,7 @@ struct VitalBarApp: App {
         let loadSampler = CPULoadSampler()
         let historyService = CPUHistoryService(
             sampler: loadSampler,
+            temperatureSampler: SMCTemperatureSampler(),
             historyCapacity: CPUHistoryService.defaultHistoryCapacity,
             sampleInterval: CPUHistoryService.defaultSampleInterval,
             staleAfter: CPUHistoryService.defaultStaleAfter

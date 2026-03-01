@@ -9,6 +9,9 @@ struct MenuBarContentView: View {
         let cpuLevel = UsageStyle.level(for: viewModel.currentUsage, isStale: viewModel.isStale)
         let cpuColor = UsageStyle.color(for: cpuLevel)
         let memoryPressureColor = UsageStyle.color(for: viewModel.memoryPressureLevel)
+        let cpuSocTemperatureText = MenuBarViewModel.cpuSoCTemperatureText(for: viewModel.temperatureReadings)
+        let hasTemperatureReadings = !viewModel.temperatureReadings.isEmpty
+        let shouldShowTemperatureDetails = MenuBarViewModel.shouldShowTemperatureDetails(for: viewModel.temperatureReadings)
 
         VStack(alignment: .leading, spacing: 10) {
             HStack {
@@ -44,6 +47,49 @@ struct MenuBarContentView: View {
                     .fontWeight(.semibold)
                     .foregroundStyle(cpuColor)
                     .monospacedDigit()
+            }
+
+            if shouldShowTemperatureDetails {
+                Menu {
+                    ForEach(viewModel.temperatureReadings) { reading in
+                        Text("\(reading.name): \(MenuBarViewModel.temperatureText(for: reading.celsius))")
+                    }
+                } label: {
+                    HStack {
+                        Text("Temperature")
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .menuStyle(.borderlessButton)
+                .buttonStyle(.plain)
+            } else if hasTemperatureReadings {
+                HStack {
+                    Text("Temperature")
+                    Spacer()
+                }
+            } else {
+                Button(action: {}) {
+                    HStack {
+                        Text("Temperature")
+                        Spacer()
+                    }
+                }
+                .buttonStyle(.plain)
+                .disabled(true)
+            }
+
+            if let cpuSocTemperatureText {
+                HStack {
+                    Text("CPU / SoC")
+                    Spacer()
+                    Text(cpuSocTemperatureText)
+                        .fontWeight(.semibold)
+                        .monospacedDigit()
+                }
+                .foregroundStyle(.secondary)
             }
 
             HStack {

@@ -102,6 +102,36 @@ final class FakeMemoryUsageSampler: MemoryUsageSampling, @unchecked Sendable {
     }
 }
 
+final class FakeTemperatureSampler: TemperatureSampling, @unchecked Sendable {
+    private let lock = NSLock()
+    private var results: [Result<[TemperatureSensorReading], Error>]
+    private let fallback: Result<[TemperatureSensorReading], Error>?
+
+    init(
+        results: [Result<[TemperatureSensorReading], Error>],
+        fallback: Result<[TemperatureSensorReading], Error>? = nil
+    ) {
+        self.results = results
+        self.fallback = fallback
+    }
+
+    func sampleTemperatures() throws -> [TemperatureSensorReading] {
+        lock.lock()
+        defer { lock.unlock() }
+
+        let next: Result<[TemperatureSensorReading], Error>
+        if !results.isEmpty {
+            next = results.removeFirst()
+        } else if let fallback {
+            next = fallback
+        } else {
+            next = .success([])
+        }
+
+        return try next.get()
+    }
+}
+
 enum TestSamplingError: Error {
     case failure
 }

@@ -96,6 +96,25 @@ final class CoreUtilityCoverageTests: XCTestCase {
         XCTAssertEqual(sample.usage, 0.625, accuracy: 0.0001)
     }
 
+    func testTemperatureSensorReadingStoresValues() {
+        let reading = TemperatureSensorReading(id: "cpu", name: "CPU Temperature", celsius: 59.5)
+
+        XCTAssertEqual(reading.id, "cpu")
+        XCTAssertEqual(reading.name, "CPU Temperature")
+        XCTAssertEqual(reading.celsius, 59.5, accuracy: 0.0001)
+    }
+
+    func testSystemTemperatureSamplerReturnsFiniteReadings() {
+        let sampler = SystemTemperatureSampler()
+        let readings = (try? sampler.sampleTemperatures()) ?? []
+
+        for reading in readings {
+            XCTAssertFalse(reading.id.isEmpty)
+            XCTAssertFalse(reading.name.isEmpty)
+            XCTAssertTrue(reading.celsius.isFinite)
+        }
+    }
+
     func testUsedPagesIncludesCompressedPages() {
         let usedPages = SystemMemoryUsageSampler.usedPagesIncludingCompressed(
             appPages: 700,

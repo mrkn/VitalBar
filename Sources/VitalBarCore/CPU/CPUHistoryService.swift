@@ -5,6 +5,7 @@ public struct CPUHistorySnapshot: Sendable, Equatable {
     public let latest: CPULoadSample?
     public let memoryUsage: MemoryUsageSample?
     public let diskUsage: DiskUsageSample?
+    public let temperatures: [TemperatureSensorReading]
     public let lastSuccessfulSampleAt: Date?
     public let isStale: Bool
     public let consecutiveFailures: Int
@@ -15,6 +16,7 @@ public struct CPUHistorySnapshot: Sendable, Equatable {
         latest: CPULoadSample?,
         memoryUsage: MemoryUsageSample?,
         diskUsage: DiskUsageSample?,
+        temperatures: [TemperatureSensorReading] = [],
         lastSuccessfulSampleAt: Date?,
         isStale: Bool,
         consecutiveFailures: Int,
@@ -24,6 +26,7 @@ public struct CPUHistorySnapshot: Sendable, Equatable {
         self.latest = latest
         self.memoryUsage = memoryUsage
         self.diskUsage = diskUsage
+        self.temperatures = temperatures
         self.lastSuccessfulSampleAt = lastSuccessfulSampleAt
         self.isStale = isStale
         self.consecutiveFailures = consecutiveFailures
@@ -45,6 +48,7 @@ public actor CPUHistoryService: CPUHistoryStreaming {
     private let sampler: any CPULoadSampling
     private let memorySampler: any MemoryUsageSampling
     private let diskSampler: any DiskUsageSampling
+    private let temperatureSampler: any TemperatureSampling
     private let timeSource: any TimeSource
     private let sampleInterval: Duration
     private let staleAfter: TimeInterval
@@ -52,6 +56,7 @@ public actor CPUHistoryService: CPUHistoryStreaming {
     private var history: HistoryBuffer<CPULoadSample>
     private var latestMemoryUsage: MemoryUsageSample?
     private var latestDiskUsage: DiskUsageSample?
+    private var latestTemperatures: [TemperatureSensorReading] = []
     private var lastSuccessfulSampleAt: Date?
     private var consecutiveFailures = 0
     private var lastErrorDescription: String?
@@ -63,6 +68,7 @@ public actor CPUHistoryService: CPUHistoryStreaming {
         sampler: any CPULoadSampling,
         memorySampler: any MemoryUsageSampling = SystemMemoryUsageSampler(),
         diskSampler: any DiskUsageSampling = SystemDiskUsageSampler(),
+        temperatureSampler: any TemperatureSampling = SystemTemperatureSampler(),
         historyCapacity: Int = CPUHistoryService.defaultHistoryCapacity,
         sampleInterval: Duration = CPUHistoryService.defaultSampleInterval,
         staleAfter: Duration = CPUHistoryService.defaultStaleAfter,
@@ -72,6 +78,7 @@ public actor CPUHistoryService: CPUHistoryStreaming {
         self.memorySampler = memorySampler
         self.history = HistoryBuffer(capacity: historyCapacity)
         self.diskSampler = diskSampler
+        self.temperatureSampler = temperatureSampler
         self.sampleInterval = sampleInterval
         self.staleAfter = Self.timeInterval(from: staleAfter)
         self.timeSource = timeSource
@@ -134,6 +141,10 @@ public actor CPUHistoryService: CPUHistoryStreaming {
             latestDiskUsage = diskUsage
         }
 
+        if let temperatures = try? temperatureSampler.sampleTemperatures() {
+            latestTemperatures = temperatures
+        }
+
         broadcastSnapshot(at: referenceTime)
     }
 
@@ -168,6 +179,7 @@ public actor CPUHistoryService: CPUHistoryStreaming {
             latest: history.latest,
             memoryUsage: latestMemoryUsage,
             diskUsage: latestDiskUsage,
+            temperatures: latestTemperatures,
             lastSuccessfulSampleAt: lastSuccessfulSampleAt,
             isStale: staleState(at: referenceTime),
             consecutiveFailures: consecutiveFailures,
