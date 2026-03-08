@@ -176,6 +176,20 @@ struct MenuBarContentView: View {
                     .foregroundStyle(.orange)
             }
 
+            Toggle(
+                "Launch at Login",
+                isOn: Binding(
+                    get: { viewModel.launchAtLoginEnabled },
+                    set: { viewModel.setLaunchAtLoginEnabled($0) }
+                )
+            )
+
+            if let launchAtLoginMessage = viewModel.launchAtLoginMessage {
+                Text(launchAtLoginMessage)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             Divider()
 
             Button("Quit VitalBar") {

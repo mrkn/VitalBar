@@ -21,13 +21,21 @@ final class MenuBarViewModel: ObservableObject {
     @Published private(set) var uptimeText = "--"
     @Published private(set) var isStale = false
     @Published private(set) var staleMessage: String?
+    @Published private(set) var launchAtLoginEnabled = false
+    @Published private(set) var launchAtLoginMessage: String?
 
     private let service: any CPUHistoryStreaming
+    private let launchAtLoginController: any LaunchAtLoginControlling
     private var streamTask: Task<Void, Never>?
     private let graphHistoryLimit = 40
 
-    init(service: any CPUHistoryStreaming) {
+    init(
+        service: any CPUHistoryStreaming,
+        launchAtLoginController: any LaunchAtLoginControlling = LaunchAtLoginController()
+    ) {
         self.service = service
+        self.launchAtLoginController = launchAtLoginController
+        refreshLaunchAtLoginState()
         start()
     }
 
@@ -70,6 +78,17 @@ final class MenuBarViewModel: ObservableObject {
         Task {
             await service.stop()
         }
+    }
+
+    func setLaunchAtLoginEnabled(_ enabled: Bool) {
+        do {
+            try launchAtLoginController.setEnabled(enabled)
+            launchAtLoginMessage = nil
+        } catch {
+            launchAtLoginMessage = error.localizedDescription
+        }
+
+        refreshLaunchAtLoginState()
     }
 
     static func percentText(for usage: Double?) -> String {
@@ -234,6 +253,20 @@ final class MenuBarViewModel: ObservableObject {
         }
     }
 
+    private func refreshLaunchAtLoginState() {
+        let status = launchAtLoginController.status()
+        launchAtLoginEnabled = status == .enabled
+
+        switch status {
+        case .enabled, .disabled:
+            if launchAtLoginMessage == launchAtLoginApprovalMessage {
+                launchAtLoginMessage = nil
+            }
+        case .requiresApproval:
+            launchAtLoginMessage = launchAtLoginApprovalMessage
+        }
+    }
+
     private static func temperatureReading(
         for id: String,
         in readings: [TemperatureSensorReading]
@@ -244,6 +277,7 @@ final class MenuBarViewModel: ObservableObject {
     private static let cpuTemperatureID = "cpu"
     private static let socTemperatureID = "soc"
     private static let summaryTemperatureIDs: Set<String> = [cpuTemperatureID, socTemperatureID]
+    private let launchAtLoginApprovalMessage = "Approve VitalBar in System Settings > General > Login Items."
 
     private static func formatStorage(_ bytes: UInt64) -> String {
         let units = ["B", "KB", "MB", "GB", "TB", "PB"]

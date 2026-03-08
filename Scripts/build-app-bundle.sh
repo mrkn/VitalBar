@@ -71,4 +71,6 @@ ${ICON_PLIST_ENTRY}
 </plist>
 PLIST
 
+codesign --force --deep --sign - "${APP_DIR}"
+
 echo "${APP_DIR}"

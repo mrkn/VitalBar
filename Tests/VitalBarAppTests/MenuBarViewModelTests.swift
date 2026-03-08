@@ -38,6 +38,30 @@ actor MockCPUHistoryService: CPUHistoryStreaming {
     }
 }
 
+final class MockLaunchAtLoginController: LaunchAtLoginControlling {
+    var currentStatus: LaunchAtLoginStatus
+    var nextSetResult: Result<Void, Error> = .success(())
+    private(set) var setEnabledCalls: [Bool] = []
+
+    init(status: LaunchAtLoginStatus) {
+        self.currentStatus = status
+    }
+
+    func status() -> LaunchAtLoginStatus {
+        currentStatus
+    }
+
+    func setEnabled(_ enabled: Bool) throws {
+        setEnabledCalls.append(enabled)
+        switch nextSetResult {
+        case .success:
+            currentStatus = enabled ? .enabled : .disabled
+        case let .failure(error):
+            throw error
+        }
+    }
+}
+
 final class MenuBarViewModelTests: XCTestCase {
     @MainActor
     func testViewModelReceives120Samples() async throws {
@@ -299,6 +323,75 @@ final class MenuBarViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.diskUsageHistory.count, 40)
         let lastDiskUsage = try XCTUnwrap(viewModel.diskUsageHistory.last)
         XCTAssertEqual(lastDiskUsage, 0.45, accuracy: 0.0001)
+        viewModel.stop()
+    }
+
+    @MainActor
+    func testLaunchAtLoginReflectsInitialEnabledState() {
+        let service = MockCPUHistoryService(initialSnapshot: makeSnapshot())
+        let controller = MockLaunchAtLoginController(status: .enabled)
+        let viewModel = MenuBarViewModel(service: service, launchAtLoginController: controller)
+
+        XCTAssertTrue(viewModel.launchAtLoginEnabled)
+        XCTAssertNil(viewModel.launchAtLoginMessage)
+        viewModel.stop()
+    }
+
+    @MainActor
+    func testLaunchAtLoginShowsApprovalMessage() {
+        let service = MockCPUHistoryService(initialSnapshot: makeSnapshot())
+        let controller = MockLaunchAtLoginController(status: .requiresApproval)
+        let viewModel = MenuBarViewModel(service: service, launchAtLoginController: controller)
+
+        XCTAssertFalse(viewModel.launchAtLoginEnabled)
+        XCTAssertEqual(
+            viewModel.launchAtLoginMessage,
+            "Approve VitalBar in System Settings > General > Login Items."
+        )
+        viewModel.stop()
+    }
+
+    @MainActor
+    func testLaunchAtLoginTreatsUnavailableAsDisabled() {
+        let service = MockCPUHistoryService(initialSnapshot: makeSnapshot())
+        let controller = MockLaunchAtLoginController(status: .disabled)
+        let viewModel = MenuBarViewModel(service: service, launchAtLoginController: controller)
+
+        XCTAssertFalse(viewModel.launchAtLoginEnabled)
+        XCTAssertNil(viewModel.launchAtLoginMessage)
+        viewModel.stop()
+    }
+
+    @MainActor
+    func testLaunchAtLoginToggleUpdatesState() {
+        let service = MockCPUHistoryService(initialSnapshot: makeSnapshot())
+        let controller = MockLaunchAtLoginController(status: .disabled)
+        let viewModel = MenuBarViewModel(service: service, launchAtLoginController: controller)
+
+        viewModel.setLaunchAtLoginEnabled(true)
+
+        XCTAssertEqual(controller.setEnabledCalls, [true])
+        XCTAssertTrue(viewModel.launchAtLoginEnabled)
+        XCTAssertNil(viewModel.launchAtLoginMessage)
+        viewModel.stop()
+    }
+
+    @MainActor
+    func testLaunchAtLoginTogglePreservesStateOnFailure() {
+        struct ToggleError: LocalizedError {
+            var errorDescription: String? { "toggle failed" }
+        }
+
+        let service = MockCPUHistoryService(initialSnapshot: makeSnapshot())
+        let controller = MockLaunchAtLoginController(status: .disabled)
+        controller.nextSetResult = .failure(ToggleError())
+        let viewModel = MenuBarViewModel(service: service, launchAtLoginController: controller)
+
+        viewModel.setLaunchAtLoginEnabled(true)
+
+        XCTAssertEqual(controller.setEnabledCalls, [true])
+        XCTAssertFalse(viewModel.launchAtLoginEnabled)
+        XCTAssertEqual(viewModel.launchAtLoginMessage, "toggle failed")
         viewModel.stop()
     }
 
