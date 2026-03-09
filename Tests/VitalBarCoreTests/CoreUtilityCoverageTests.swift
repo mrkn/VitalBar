@@ -142,4 +142,17 @@ final class CoreUtilityCoverageTests: XCTestCase {
 
         XCTAssertEqual(cachedPages, 247_244)
     }
+
+    func testSystemMemoryPressureSamplerInitialLevelMapping() {
+        XCTAssertEqual(SystemMemoryPressureSampler.initialLevel(fromRawLevel: 0), .normal)
+        XCTAssertEqual(SystemMemoryPressureSampler.initialLevel(fromRawLevel: 1), .warning)
+        XCTAssertEqual(SystemMemoryPressureSampler.initialLevel(fromRawLevel: 50), .warning)
+        XCTAssertEqual(SystemMemoryPressureSampler.initialLevel(fromRawLevel: 100), .critical)
+    }
+
+    func testSystemMemoryPressureSamplerUsesInjectedInitialLevel() {
+        let sampler = SystemMemoryPressureSampler(initialLevelProvider: { .warning })
+
+        XCTAssertEqual(sampler.currentPressureLevel(), .warning)
+    }
 }

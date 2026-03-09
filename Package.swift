@@ -20,7 +20,13 @@ let package = Package(
     ],
     targets: [
         .target(
+            name: "VitalBarCShims",
+            path: "Sources/VitalBarCShims",
+            publicHeadersPath: "include"
+        ),
+        .target(
             name: "VitalBarCore",
+            dependencies: ["VitalBarCShims"],
             path: "Sources/VitalBarCore"
         ),
         .executableTarget(

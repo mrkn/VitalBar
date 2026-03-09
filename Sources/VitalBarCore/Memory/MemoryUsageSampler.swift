@@ -1,6 +1,7 @@
 import Darwin
 import Dispatch
 import Foundation
+import VitalBarCShims
 
 public enum MemoryPressureLevel: String, Sendable, Equatable {
     case normal
@@ -67,10 +68,11 @@ public final class SystemMemoryPressureSampler: MemoryPressureLevelProviding, @u
     public static let shared = SystemMemoryPressureSampler()
 
     private let lock = NSLock()
-    private var level: MemoryPressureLevel = .normal
+    private var level: MemoryPressureLevel
     private let source: DispatchSourceMemoryPressure
 
-    private init() {
+    init(initialLevelProvider: (@Sendable () -> MemoryPressureLevel)? = nil) {
+        self.level = (initialLevelProvider ?? Self.readInitialLevel)()
         let source = DispatchSource.makeMemoryPressureSource(
             eventMask: [.normal, .warning, .critical],
             queue: DispatchQueue.global(qos: .utility)
@@ -108,6 +110,30 @@ public final class SystemMemoryPressureSampler: MemoryPressureLevelProviding, @u
         lock.lock()
         level = nextLevel
         lock.unlock()
+    }
+
+    static func readInitialLevel() -> MemoryPressureLevel {
+        var rawLevel: Int32 = -1
+        let status = vitalbar_current_memory_pressure_level(&rawLevel)
+        guard status == 0 else {
+            return .unknown
+        }
+
+        return initialLevel(fromRawLevel: rawLevel)
+    }
+
+    static func initialLevel(fromRawLevel rawLevel: Int32) -> MemoryPressureLevel {
+        // Inference from SYS_memorystatus_get_level:
+        // 0 indicates no current pressure, nonzero indicates pressure is active.
+        if rawLevel <= 0 {
+            return .normal
+        }
+
+        if rawLevel >= 100 {
+            return .critical
+        }
+
+        return .warning
     }
 }
 
