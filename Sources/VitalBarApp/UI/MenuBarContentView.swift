@@ -2,6 +2,11 @@ import AppKit
 import SwiftUI
 
 struct MenuBarContentView: View {
+    private enum AppSubmenuItem {
+        case launchAtLogin
+        case quit
+    }
+
     @ObservedObject var viewModel: MenuBarViewModel
     private static let legendMarkerSize: CGFloat = 7
     private static let primaryMenuWidth: CGFloat = 300
@@ -11,9 +16,12 @@ struct MenuBarContentView: View {
     private static let menuVerticalPadding: CGFloat = 12
     private static let menuRowHorizontalPadding: CGFloat = 8
     private static let appMenuRowVerticalPadding: CGFloat = 6
+    private static let submenuPadding: CGFloat = 6
+    private static let submenuItemPadding: CGFloat = 6
     @State private var isAppMenuPresented = false
     @State private var isPointerOverAppMenuTrigger = false
     @State private var isPointerOverAppSubmenu = false
+    @State private var hoveredAppSubmenuItem: AppSubmenuItem?
     @State private var appMenuCloseTask: Task<Void, Never>?
 
     var body: some View {
@@ -29,19 +37,20 @@ struct MenuBarContentView: View {
                 HStack {
                     Text("VitalBar")
                         .font(.headline)
+                        .foregroundStyle(appMenuTextColor)
 
                     Spacer()
 
                     if viewModel.isStale {
                         Label("Stale", systemImage: "exclamationmark.triangle.fill")
                             .font(.caption)
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(appMenuStaleColor)
                             .labelStyle(.titleAndIcon)
                     }
 
                     Image(systemName: "chevron.right")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(appMenuChevronColor)
                 }
                 .contentShape(Rectangle())
                 .onHover { isHovering in
@@ -63,7 +72,7 @@ struct MenuBarContentView: View {
             }
             .background {
                 RoundedRectangle(cornerRadius: 6)
-                    .fill(isAppMenuPresented ? Color.accentColor.opacity(0.2) : .clear)
+                    .fill(appMenuBackgroundColor)
             }
 
             SparklineView(samples: viewModel.samples, color: cpuColor)
@@ -253,6 +262,7 @@ struct MenuBarContentView: View {
             isAppMenuPresented = false
             isPointerOverAppMenuTrigger = false
             isPointerOverAppSubmenu = false
+            hoveredAppSubmenuItem = nil
         }
     }
 
@@ -277,33 +287,42 @@ struct MenuBarContentView: View {
     }
 
     private var appSubmenu: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Toggle(
-                "Launch at Login",
-                isOn: Binding(
-                    get: { viewModel.launchAtLoginEnabled },
-                    set: { viewModel.setLaunchAtLoginEnabled($0) }
+        VStack(alignment: .leading, spacing: 0) {
+            submenuRow(item: .launchAtLogin) {
+                Toggle(
+                    "Launch at Login",
+                    isOn: Binding(
+                        get: { viewModel.launchAtLoginEnabled },
+                        set: { viewModel.setLaunchAtLoginEnabled($0) }
+                    )
                 )
-            )
-            .toggleStyle(.checkbox)
-
-            Divider()
-
-            Button("Quit VitalBar") {
-                NSApplication.shared.terminate(nil)
+                .toggleStyle(.checkbox)
             }
+
+            submenuDivider
+
+            Button {
+                NSApplication.shared.terminate(nil)
+            } label: {
+                submenuRow(item: .quit) {
+                    Text("Quit VitalBar")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .buttonStyle(.plain)
             .keyboardShortcut("q", modifiers: [.command])
 
             if let launchAtLoginMessage = viewModel.launchAtLoginMessage {
-                Divider()
+                submenuDivider
 
                 Text(launchAtLoginMessage)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+                    .padding(Self.submenuItemPadding)
             }
         }
-        .padding(12)
+        .padding(Self.submenuPadding)
         .frame(width: Self.submenuWidth, alignment: .leading)
         .background {
             RoundedRectangle(cornerRadius: 8)
@@ -314,6 +333,55 @@ struct MenuBarContentView: View {
                 .strokeBorder(Color.secondary.opacity(0.35), lineWidth: 1)
         }
         .shadow(color: .black.opacity(0.2), radius: 10, y: 4)
+    }
+
+    private var appMenuBackgroundColor: Color {
+        isAppMenuPresented ? Color(nsColor: .selectedContentBackgroundColor) : .clear
+    }
+
+    private func submenuRow<Content: View>(item: AppSubmenuItem, @ViewBuilder content: () -> Content) -> some View {
+        content()
+            .foregroundStyle(hoveredAppSubmenuItem == item ? submenuSelectedTextColor : .primary)
+            .padding(Self.submenuItemPadding)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(hoveredAppSubmenuItem == item ? submenuSelectedBackgroundColor : .clear)
+            }
+            .contentShape(Rectangle())
+            .onHover { isHovering in
+                if isHovering {
+                    hoveredAppSubmenuItem = item
+                } else if hoveredAppSubmenuItem == item {
+                    hoveredAppSubmenuItem = nil
+                }
+            }
+    }
+
+    private var submenuDivider: some View {
+        Divider()
+            .padding(.vertical, Self.submenuPadding)
+            .padding(.horizontal, Self.submenuPadding)
+    }
+
+    private var appMenuTextColor: Color {
+        isAppMenuPresented ? Color(nsColor: .selectedMenuItemTextColor) : .primary
+    }
+
+    private var appMenuChevronColor: Color {
+        isAppMenuPresented ? Color(nsColor: .selectedMenuItemTextColor) : .secondary
+    }
+
+    private var appMenuStaleColor: Color {
+        isAppMenuPresented ? Color(nsColor: .selectedMenuItemTextColor) : .orange
+    }
+
+    private var submenuSelectedBackgroundColor: Color {
+        Color(nsColor: .selectedContentBackgroundColor)
+    }
+
+    private var submenuSelectedTextColor: Color {
+        Color(nsColor: .selectedMenuItemTextColor)
     }
 
     private func updateAppMenuPresentation() {
