@@ -13,7 +13,7 @@ struct MenuBarContentView: View {
     private static let submenuWidth: CGFloat = 190
     private static let submenuCloseDelayNanoseconds: UInt64 = 180_000_000
     private static let menuHorizontalPadding: CGFloat = 6
-    private static let menuVerticalPadding: CGFloat = 12
+    private static let menuVerticalPadding: CGFloat = 6
     private static let menuRowHorizontalPadding: CGFloat = 8
     private static let appMenuRowVerticalPadding: CGFloat = 6
     private static let submenuPadding: CGFloat = 6
@@ -245,6 +245,7 @@ struct MenuBarContentView: View {
                         .monospacedDigit()
                 }
             }
+            .padding(.bottom, Self.menuVerticalPadding)
 
             if let staleMessage = viewModel.staleMessage, viewModel.isStale {
                 menuRow {
