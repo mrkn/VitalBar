@@ -1,56 +1,104 @@
 # VitalBar
 
-VitalBar is a macOS menu bar app that samples system status and visualizes it in place.
-The v1 implementation focuses on CPU load history only.
+VitalBar is a macOS menu bar app that samples system status and visualizes it directly in the menu bar.
 
-## v1 scope
+## Current features
 
 - Menu-bar-only app (`LSUIElement` behavior).
-- CPU load sampling every second.
-- Current memory display with `used / total`, app memory, wired memory, pressure, cached files, compressed, and swap used.
-- Last 120 samples (2 minutes) shown as a sparkline + current percentage.
-- Stale state after 5 seconds without successful sampling.
-- Core logic and ViewModel tests.
-- CI and release workflows for build/test/coverage and signed+notarized release.
+- Compact menu bar label with CPU, memory, and disk history graphs.
+- Current CPU percentage in the primary menu.
+- Memory display with:
+  - used / total
+  - memory pressure
+  - app memory
+  - wired memory
+  - cached files
+  - compressed memory
+  - swap used
+- Disk usage display with `used / total (percent)`.
+- Uptime display.
+- Temperature sampling:
+  - CPU and SoC summary in the primary menu
+  - full temperature detail submenu when additional sensors are available
+  - SMC sampling with IOHID fallback for environments where AppleSMC access is unavailable
+- Stale state when sampling stops updating.
+- `VitalBar` submenu with:
+  - `Keep Mac Awake`
+  - `Launch at Login`
+  - `Quit VitalBar`
+- Menu bar status indicator for `Keep Mac Awake`.
+- Unit and view model tests.
+- CI and release workflows for build, test, coverage, signing, and notarized releases.
+
+## Requirements
+
+- macOS 14 or later
+- Swift 6.2
+- Xcode 16.1 or a compatible toolchain
 
 ## Project structure
 
-- `Sources/VitalBarCore`: sampling, history buffer, service actor, extension-friendly interfaces.
-- `Sources/VitalBarApp`: `MenuBarExtra` UI, view model, app lifecycle.
-- `Tests/VitalBarCoreTests`: unit tests for calculator, sampler, history, service.
-- `Tests/VitalBarAppTests`: integration-like tests for view model and display rules.
+- `Sources/VitalBarCore`: core sampling, history buffers, shared models, and service logic.
+- `Sources/VitalBarApp`: app lifecycle, menu bar UI, launch-at-login, keep-awake, and temperature integration.
+- `Tests/VitalBarCoreTests`: unit tests for core sampling and support types.
+- `Tests/VitalBarAppTests`: UI-facing and view model behavior tests.
+- `Scripts/`: build, coverage, and icon helper scripts.
 - `.github/workflows`: CI and release workflows.
 
 ## Build and run locally
 
 ```bash
+make run
+```
+
+Direct SwiftPM invocation also works:
+
+```bash
 swift run VitalBarApp
 ```
 
-## Make shortcuts
+## Make targets
 
 ```bash
 make help
-make icon
-make icon-candidates
 make build
 make run
 make test
 make coverage
+make app VERSION=0.1.0
 make bundle VERSION=0.1.0
+make icon
+make icon-candidates
+make ci
+```
+
+## Build a local app bundle
+
+```bash
+make app VERSION=0.1.0
+```
+
+This creates `dist/VitalBar.app`.
+
+If you want `Launch at Login` to work, run the bundled app from `/Applications`, for example:
+
+```bash
+cp -R dist/VitalBar.app /Applications/
+open /Applications/VitalBar.app
 ```
 
 ## Run tests
 
 ```bash
-swift test
+make test
 ```
 
-## Coverage gate (VitalBarCore >= 80%)
+## Coverage gate
+
+`VitalBarCore` line coverage must stay at or above 80%.
 
 ```bash
-swift test --enable-code-coverage
-./Scripts/check-core-coverage.sh 80
+make coverage
 ```
 
 ## Release workflow secrets
@@ -67,10 +115,18 @@ Set these GitHub repository secrets before pushing `v*` tags:
 
 ## Manual acceptance checklist
 
-1. Launch app and confirm menu bar label appears within 5 seconds.
-2. Confirm sparkline and current `%` update every second.
-3. Generate CPU load and verify graph/value react.
-4. Verify stale warning appears if sampling cannot update for >5 seconds.
+1. Launch the app and confirm the menu bar label appears within a few seconds.
+2. Confirm CPU, memory, and disk graphs update over time.
+3. Open the primary menu and verify current CPU, memory, disk, and uptime values render.
+4. Verify temperature behavior:
+   - `Temperature` is disabled when no temperature is available.
+   - `CPU / SoC` appears when either reading is available.
+   - the detail submenu appears only when sensors beyond CPU / SoC are available.
+5. Toggle `Keep Mac Awake` and confirm:
+   - the submenu item changes state
+   - the coffee cup indicator appears in the menu bar
+6. Toggle `Launch at Login` from the bundled app in `/Applications`.
+7. Verify stale warning appears if sampling cannot update for several seconds.
 
 ## License
 
