@@ -14,23 +14,37 @@ struct MenuBarLabelView: View {
     static let diskGraphWidth: CGFloat = 8
     static let graphHeight: CGFloat = 18
     static let graphSpacing: CGFloat = 5
+    static let awakeIndicatorSize: CGFloat = 16
+    static let awakeIndicatorSpacing: CGFloat = 4
     static let maxHistoryCount = 40
     static let totalGraphWidth: CGFloat = cpuGraphWidth + graphSpacing + memoryGraphWidth + graphSpacing + diskGraphWidth
+    static let totalAwakeGraphWidth: CGFloat = totalGraphWidth + awakeIndicatorSpacing + awakeIndicatorSize
 
     let cpuSamples: [CPULoadSample]
     let memorySamples: [MemoryCompositionPoint]
     let diskSamples: [Double]
     let isStale: Bool
+    let keepMacAwakeEnabled: Bool
+
+    private var labelWidth: CGFloat {
+        if keepMacAwakeEnabled {
+            return Self.totalAwakeGraphWidth
+        }
+        return Self.totalGraphWidth
+    }
 
     private var accessibilityValue: String {
         let cpuText = percentText(cpuSamples.last?.usage)
         let memoryText = percentText(memorySamples.last.map { $0.appRatio + $0.wiredRatio + $0.cachedRatio })
         let diskText = diskSamples.last.map(percentText) ?? "Unknown"
-        return "CPU \(cpuText), Memory \(memoryText), Disk \(diskText)"
+        let awakeText = keepMacAwakeEnabled ? ", Keep Mac Awake enabled" : ""
+        return "CPU \(cpuText), Memory \(memoryText), Disk \(diskText)\(awakeText)"
     }
 
     var body: some View {
         imageGraphs
+        .frame(width: labelWidth, alignment: .leading)
+        .fixedSize(horizontal: true, vertical: false)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("System usage")
         .accessibilityValue(accessibilityValue)
@@ -57,9 +71,10 @@ struct MenuBarLabelView: View {
             cpuSamples: Array(cpuSamples.suffix(Self.maxHistoryCount)),
             memorySamples: Array(memorySamples.suffix(Self.maxHistoryCount)),
             diskSamples: Array(diskSamples.suffix(Self.maxHistoryCount)),
-            isStale: isStale
+            isStale: isStale,
+            keepMacAwakeEnabled: keepMacAwakeEnabled
         )
-        .frame(width: Self.totalGraphWidth, height: Self.graphHeight)
+        .frame(width: labelWidth, height: Self.graphHeight)
     }
 
     private func percentText(_ value: Double?) -> String {
@@ -271,6 +286,7 @@ private struct MenuBarImageGraphView: View {
     let memorySamples: [MemoryCompositionPoint]
     let diskSamples: [Double]
     let isStale: Bool
+    let keepMacAwakeEnabled: Bool
 
     var body: some View {
         let cpuLevel = UsageStyle.level(for: cpuSamples.last?.usage, isStale: isStale)
@@ -279,7 +295,8 @@ private struct MenuBarImageGraphView: View {
             memorySamples: memorySamples,
             diskSamples: diskSamples,
             cpuLevel: cpuLevel,
-            isStale: isStale
+            isStale: isStale,
+            keepMacAwakeEnabled: keepMacAwakeEnabled
         )
 
         return Image(nsImage: image)
@@ -296,9 +313,11 @@ private enum MenuBarGraphImageRenderer {
         memorySamples: [MemoryCompositionPoint],
         diskSamples: [Double],
         cpuLevel: UsageLevel,
-        isStale: Bool
+        isStale: Bool,
+        keepMacAwakeEnabled: Bool
     ) -> NSImage {
-        let size = NSSize(width: MenuBarLabelView.totalGraphWidth, height: MenuBarLabelView.graphHeight)
+        let width = keepMacAwakeEnabled ? MenuBarLabelView.totalAwakeGraphWidth : MenuBarLabelView.totalGraphWidth
+        let size = NSSize(width: width, height: MenuBarLabelView.graphHeight)
         let image = NSImage(size: size, flipped: false) { bounds in
             guard let context = NSGraphicsContext.current?.cgContext else {
                 return false
@@ -325,10 +344,45 @@ private enum MenuBarGraphImageRenderer {
             drawCPUGraph(in: context, rect: cpuRect, samples: cpuSamples, level: cpuLevel)
             drawMemoryGraph(in: context, rect: memoryRect, samples: memorySamples)
             drawDiskGraph(in: context, rect: diskRect, usage: diskSamples.last, isStale: isStale)
+            if keepMacAwakeEnabled {
+                let symbolX = diskRect.maxX + MenuBarLabelView.awakeIndicatorSpacing
+                let symbolRect = CGRect(
+                    x: symbolX,
+                    y: (MenuBarLabelView.graphHeight - MenuBarLabelView.awakeIndicatorSize) / 2,
+                    width: MenuBarLabelView.awakeIndicatorSize,
+                    height: MenuBarLabelView.awakeIndicatorSize
+                )
+                drawAwakeIndicator(in: context, rect: symbolRect)
+            }
             return true
         }
         image.isTemplate = false
         return image
+    }
+
+    private static func drawAwakeIndicator(in context: CGContext, rect: CGRect) {
+        let configuration = NSImage.SymbolConfiguration(pointSize: MenuBarLabelView.awakeIndicatorSize, weight: .regular)
+        guard
+            let symbol = NSImage(
+                systemSymbolName: "cup.and.saucer.fill",
+                accessibilityDescription: "Keep Mac Awake enabled"
+            )?.withSymbolConfiguration(configuration),
+            let cgImage = symbol.cgImage(forProposedRect: nil, context: nil, hints: nil)
+        else {
+            return
+        }
+
+        context.saveGState()
+        defer { context.restoreGState() }
+
+        // The menu bar graph renderer flips the whole context for graph drawing.
+        // Flip the symbol back so SF Symbols render upright.
+        context.translateBy(x: 0, y: rect.minY * 2 + rect.height)
+        context.scaleBy(x: 1, y: -1)
+        context.setBlendMode(.normal)
+        context.clip(to: rect, mask: cgImage)
+        context.setFillColor(NSColor.labelColor.cgColor)
+        context.fill(rect)
     }
 
     private static func drawCPUGraph(in context: CGContext, rect: CGRect, samples: [CPULoadSample], level: UsageLevel) {

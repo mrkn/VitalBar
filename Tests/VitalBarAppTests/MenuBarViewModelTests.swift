@@ -62,6 +62,30 @@ final class MockLaunchAtLoginController: LaunchAtLoginControlling {
     }
 }
 
+final class MockPreventSleepController: PreventSleepControlling {
+    var enabled: Bool
+    var nextSetResult: Result<Void, Error> = .success(())
+    private(set) var setEnabledCalls: [Bool] = []
+
+    init(enabled: Bool) {
+        self.enabled = enabled
+    }
+
+    func isEnabled() -> Bool {
+        enabled
+    }
+
+    func setEnabled(_ enabled: Bool) throws {
+        setEnabledCalls.append(enabled)
+        switch nextSetResult {
+        case .success:
+            self.enabled = enabled
+        case let .failure(error):
+            throw error
+        }
+    }
+}
+
 final class MenuBarViewModelTests: XCTestCase {
     @MainActor
     func testViewModelReceives120Samples() async throws {
@@ -392,6 +416,50 @@ final class MenuBarViewModelTests: XCTestCase {
         XCTAssertEqual(controller.setEnabledCalls, [true])
         XCTAssertFalse(viewModel.launchAtLoginEnabled)
         XCTAssertEqual(viewModel.launchAtLoginMessage, "toggle failed")
+        viewModel.stop()
+    }
+
+    @MainActor
+    func testPreventSleepReflectsInitialEnabledState() {
+        let service = MockCPUHistoryService(initialSnapshot: makeSnapshot())
+        let controller = MockPreventSleepController(enabled: true)
+        let viewModel = MenuBarViewModel(service: service, preventSleepController: controller)
+
+        XCTAssertTrue(viewModel.preventSleepEnabled)
+        XCTAssertNil(viewModel.preventSleepMessage)
+        viewModel.stop()
+    }
+
+    @MainActor
+    func testPreventSleepToggleUpdatesState() {
+        let service = MockCPUHistoryService(initialSnapshot: makeSnapshot())
+        let controller = MockPreventSleepController(enabled: false)
+        let viewModel = MenuBarViewModel(service: service, preventSleepController: controller)
+
+        viewModel.setPreventSleepEnabled(true)
+
+        XCTAssertEqual(controller.setEnabledCalls, [true])
+        XCTAssertTrue(viewModel.preventSleepEnabled)
+        XCTAssertNil(viewModel.preventSleepMessage)
+        viewModel.stop()
+    }
+
+    @MainActor
+    func testPreventSleepTogglePreservesStateOnFailure() {
+        struct ToggleError: LocalizedError {
+            var errorDescription: String? { "prevent sleep failed" }
+        }
+
+        let service = MockCPUHistoryService(initialSnapshot: makeSnapshot())
+        let controller = MockPreventSleepController(enabled: false)
+        controller.nextSetResult = .failure(ToggleError())
+        let viewModel = MenuBarViewModel(service: service, preventSleepController: controller)
+
+        viewModel.setPreventSleepEnabled(true)
+
+        XCTAssertEqual(controller.setEnabledCalls, [true])
+        XCTAssertFalse(viewModel.preventSleepEnabled)
+        XCTAssertEqual(viewModel.preventSleepMessage, "prevent sleep failed")
         viewModel.stop()
     }
 

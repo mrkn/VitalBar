@@ -27,8 +27,10 @@ struct VitalBarApp: App {
                 cpuSamples: viewModel.samples,
                 memorySamples: viewModel.memoryHistory,
                 diskSamples: viewModel.diskUsageHistory,
-                isStale: viewModel.isStale
+                isStale: viewModel.isStale,
+                keepMacAwakeEnabled: viewModel.preventSleepEnabled
             )
+            .id(viewModel.preventSleepEnabled)
         }
         .menuBarExtraStyle(.window)
     }

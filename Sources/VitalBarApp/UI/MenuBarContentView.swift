@@ -3,6 +3,7 @@ import SwiftUI
 
 struct MenuBarContentView: View {
     private enum AppSubmenuItem {
+        case preventSleep
         case launchAtLogin
         case quit
     }
@@ -18,6 +19,7 @@ struct MenuBarContentView: View {
     private static let appMenuRowVerticalPadding: CGFloat = 6
     private static let submenuPadding: CGFloat = 6
     private static let submenuItemPadding: CGFloat = 6
+    private static let awakeIndicatorSize: CGFloat = 14
     @State private var isAppMenuPresented = false
     @State private var isPointerOverAppMenuTrigger = false
     @State private var isPointerOverAppSubmenu = false
@@ -289,6 +291,25 @@ struct MenuBarContentView: View {
 
     private var appSubmenu: some View {
         VStack(alignment: .leading, spacing: 0) {
+            submenuRow(item: .preventSleep) {
+                Toggle(
+                    isOn: Binding(
+                        get: { viewModel.preventSleepEnabled },
+                        set: { viewModel.setPreventSleepEnabled($0) }
+                    )
+                ) {
+                    HStack(spacing: 4) {
+                        Text("Keep Mac Awake")
+                        Image(systemName: "cup.and.saucer.fill")
+                            .font(.system(size: Self.awakeIndicatorSize))
+                            .accessibilityHidden(true)
+                    }
+                }
+                .toggleStyle(.checkbox)
+            }
+
+            submenuDivider
+
             submenuRow(item: .launchAtLogin) {
                 Toggle(
                     "Launch at Login",
@@ -317,6 +338,16 @@ struct MenuBarContentView: View {
                 submenuDivider
 
                 Text(launchAtLoginMessage)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(Self.submenuItemPadding)
+            }
+
+            if let preventSleepMessage = viewModel.preventSleepMessage {
+                submenuDivider
+
+                Text(preventSleepMessage)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

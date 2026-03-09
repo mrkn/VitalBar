@@ -23,19 +23,25 @@ final class MenuBarViewModel: ObservableObject {
     @Published private(set) var staleMessage: String?
     @Published private(set) var launchAtLoginEnabled = false
     @Published private(set) var launchAtLoginMessage: String?
+    @Published private(set) var preventSleepEnabled = false
+    @Published private(set) var preventSleepMessage: String?
 
     private let service: any CPUHistoryStreaming
     private let launchAtLoginController: any LaunchAtLoginControlling
+    private let preventSleepController: any PreventSleepControlling
     private var streamTask: Task<Void, Never>?
     private let graphHistoryLimit = 40
 
     init(
         service: any CPUHistoryStreaming,
-        launchAtLoginController: any LaunchAtLoginControlling = LaunchAtLoginController()
+        launchAtLoginController: any LaunchAtLoginControlling = LaunchAtLoginController(),
+        preventSleepController: any PreventSleepControlling = PreventSleepController()
     ) {
         self.service = service
         self.launchAtLoginController = launchAtLoginController
+        self.preventSleepController = preventSleepController
         refreshLaunchAtLoginState()
+        refreshPreventSleepState()
         start()
     }
 
@@ -89,6 +95,17 @@ final class MenuBarViewModel: ObservableObject {
         }
 
         refreshLaunchAtLoginState()
+    }
+
+    func setPreventSleepEnabled(_ enabled: Bool) {
+        do {
+            try preventSleepController.setEnabled(enabled)
+            preventSleepMessage = nil
+        } catch {
+            preventSleepMessage = error.localizedDescription
+        }
+
+        refreshPreventSleepState()
     }
 
     static func percentText(for usage: Double?) -> String {
@@ -265,6 +282,10 @@ final class MenuBarViewModel: ObservableObject {
         case .requiresApproval:
             launchAtLoginMessage = launchAtLoginApprovalMessage
         }
+    }
+
+    private func refreshPreventSleepState() {
+        preventSleepEnabled = preventSleepController.isEnabled()
     }
 
     private static func temperatureReading(
