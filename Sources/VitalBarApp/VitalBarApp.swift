@@ -16,12 +16,19 @@ struct VitalBarApp: App {
             staleAfter: CPUHistoryService.defaultStaleAfter
         )
 
-        _viewModel = StateObject(wrappedValue: MenuBarViewModel(service: historyService))
+        let viewModel = MenuBarViewModel(service: historyService)
+        _viewModel = StateObject(wrappedValue: viewModel)
+        AppTerminationCoordinator.shared.register {
+            await viewModel.shutdown()
+        }
     }
 
     var body: some Scene {
         MenuBarExtra {
-            MenuBarContentView(viewModel: viewModel)
+            MenuBarContentView(
+                viewModel: viewModel,
+                appSubmenuController: appDelegate.appSubmenuController
+            )
         } label: {
             MenuBarLabelView(
                 cpuSamples: viewModel.samples,

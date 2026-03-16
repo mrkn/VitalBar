@@ -47,11 +47,6 @@ final class MenuBarViewModel: ObservableObject {
 
     deinit {
         streamTask?.cancel()
-        let historyService = service
-
-        Task {
-            await historyService.stop()
-        }
     }
 
     var currentUsage: Double? {
@@ -78,11 +73,25 @@ final class MenuBarViewModel: ObservableObject {
     }
 
     func stop() {
+        Task {
+            await shutdown()
+        }
+    }
+
+    func shutdown() async {
         streamTask?.cancel()
         streamTask = nil
+        await service.stop()
 
-        Task {
-            await service.stop()
+        if preventSleepController.isEnabled() {
+            do {
+                try preventSleepController.setEnabled(false)
+                preventSleepMessage = nil
+            } catch {
+                preventSleepMessage = error.localizedDescription
+            }
+
+            refreshPreventSleepState()
         }
     }
 

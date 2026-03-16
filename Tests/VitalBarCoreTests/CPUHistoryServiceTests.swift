@@ -174,4 +174,30 @@ final class CPUHistoryServiceTests: XCTestCase {
         await service.stop()
         collector.cancel()
     }
+
+    func testStopFinishesActiveSnapshotStreams() async {
+        let start = Date(timeIntervalSince1970: 1_700_000_000)
+        let timeSource = MutableTimeSource(now: start)
+        let sample = CPULoadSample(timestamp: start, usage: 0.3)
+        let service = CPUHistoryService(
+            sampler: FakeCPULoadSampler(results: [.success(sample)], fallback: .success(sample)),
+            memorySampler: FakeMemoryUsageSampler(results: [.success(MemoryUsageSample(usedBytes: 3, totalBytes: 10))]),
+            temperatureSampler: FakeTemperatureSampler(
+                results: [.success([TemperatureSensorReading(id: "cpu", name: "CPU Temperature", celsius: 61.0)])]
+            ),
+            historyCapacity: 120,
+            sampleInterval: .seconds(10),
+            staleAfter: .seconds(5),
+            timeSource: timeSource
+        )
+
+        let stream = await service.snapshots()
+        var iterator = stream.makeAsyncIterator()
+
+        _ = await iterator.next()
+        await service.stop()
+
+        let next = await iterator.next()
+        XCTAssertNil(next)
+    }
 }

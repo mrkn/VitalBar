@@ -1,7 +1,165 @@
 import AppKit
 import SwiftUI
 
+@MainActor
+final class SubmenuWindowController {
+    private var panel: SubmenuPanel?
+    private var hostingView: HoverTrackingHostingView<AnyView>?
+    private weak var observedParentWindow: NSWindow?
+    private var observerTokens: [NSObjectProtocol] = []
+    private var horizontalOffset: CGFloat = 8
+    private var verticalOffset: CGFloat = 0
+
+    func present(
+        relativeTo anchorView: NSView,
+        horizontalOffset: CGFloat,
+        verticalOffset: CGFloat,
+        onHoverChanged: ((Bool) -> Void)?,
+        content: AnyView
+    ) {
+        self.horizontalOffset = horizontalOffset
+        self.verticalOffset = verticalOffset
+
+        guard let parentWindow = anchorView.window else {
+            DispatchQueue.main.async { [weak self, weak anchorView] in
+                guard let self, let anchorView else {
+                    return
+                }
+
+                self.present(
+                    relativeTo: anchorView,
+                    horizontalOffset: horizontalOffset,
+                    verticalOffset: verticalOffset,
+                    onHoverChanged: onHoverChanged,
+                    content: content
+                )
+            }
+            return
+        }
+
+        let panel = panel ?? makePanel()
+        let hostingView = hostingView ?? makeHostingView()
+        hostingView.rootView = content
+        hostingView.onHoverChanged = onHoverChanged
+        panel.contentView = hostingView
+        self.hostingView = hostingView
+
+        hostingView.layoutSubtreeIfNeeded()
+        let fittingSize = hostingView.fittingSize
+        panel.setContentSize(
+            NSSize(
+                width: max(180, fittingSize.width),
+                height: max(1, fittingSize.height)
+            )
+        )
+
+        if panel.parent !== parentWindow {
+            panel.parent?.removeChildWindow(panel)
+            parentWindow.addChildWindow(panel, ordered: .above)
+        }
+
+        updatePanelFrame(relativeTo: anchorView, in: parentWindow, panel: panel)
+        panel.orderFront(nil)
+        observeFrameChanges(of: parentWindow, anchorView: anchorView)
+    }
+
+    func close() {
+        removeObservers()
+
+        if let panel, let parentWindow = panel.parent {
+            parentWindow.removeChildWindow(panel)
+        }
+
+        panel?.orderOut(nil)
+    }
+
+    private func makePanel() -> SubmenuPanel {
+        let panel = SubmenuPanel(
+            contentRect: .zero,
+            styleMask: [.borderless, .nonactivatingPanel, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+        panel.isOpaque = false
+        panel.backgroundColor = .clear
+        panel.hasShadow = true
+        panel.hidesOnDeactivate = false
+        panel.level = .popUpMenu
+        panel.collectionBehavior = [.transient, .moveToActiveSpace, .ignoresCycle]
+        self.panel = panel
+        return panel
+    }
+
+    private func makeHostingView() -> HoverTrackingHostingView<AnyView> {
+        HoverTrackingHostingView(rootView: AnyView(EmptyView()))
+    }
+
+    private func observeFrameChanges(of parentWindow: NSWindow, anchorView: NSView) {
+        guard observedParentWindow !== parentWindow else {
+            return
+        }
+
+        removeObservers()
+        observedParentWindow = parentWindow
+
+        observerTokens.append(NotificationCenter.default.addObserver(
+            forName: NSWindow.didMoveNotification,
+            object: parentWindow,
+            queue: .main
+        ) { [weak self, weak anchorView] _ in
+            Task { @MainActor [weak self, weak anchorView] in
+                self?.repositionPanel(relativeTo: anchorView)
+            }
+        })
+
+        observerTokens.append(NotificationCenter.default.addObserver(
+            forName: NSWindow.didResizeNotification,
+            object: parentWindow,
+            queue: .main
+        ) { [weak self, weak anchorView] _ in
+            Task { @MainActor [weak self, weak anchorView] in
+                self?.repositionPanel(relativeTo: anchorView)
+            }
+        })
+    }
+
+    private func repositionPanel(relativeTo anchorView: NSView?) {
+        guard
+            let anchorView,
+            let parentWindow = anchorView.window,
+            let panel
+        else {
+            return
+        }
+
+        updatePanelFrame(relativeTo: anchorView, in: parentWindow, panel: panel)
+    }
+
+    private func updatePanelFrame(relativeTo anchorView: NSView, in parentWindow: NSWindow, panel: NSPanel) {
+        let anchorFrame = anchorView.convert(anchorView.bounds, to: nil)
+        let anchorScreenFrame = parentWindow.convertToScreen(anchorFrame)
+        let visibleFrame = parentWindow.screen?.visibleFrame ?? NSScreen.main?.visibleFrame ?? .infinite
+        let opensRight = anchorScreenFrame.maxX + horizontalOffset + panel.frame.width <= visibleFrame.maxX
+        let x = opensRight
+            ? anchorScreenFrame.maxX + horizontalOffset
+            : anchorScreenFrame.minX - horizontalOffset - panel.frame.width
+        let preferredY = anchorScreenFrame.maxY - panel.frame.height + verticalOffset
+        let y = min(
+            max(preferredY, visibleFrame.minY),
+            visibleFrame.maxY - panel.frame.height
+        )
+        panel.setFrameOrigin(NSPoint(x: x, y: y))
+    }
+
+    private func removeObservers() {
+        observerTokens.forEach { NotificationCenter.default.removeObserver($0) }
+        observerTokens.removeAll()
+        observedParentWindow = nil
+    }
+}
+
 struct SubmenuWindowPresenter<Content: View>: NSViewRepresentable {
+    let controller: SubmenuWindowController
     @Binding var isPresented: Bool
     var horizontalOffset: CGFloat = 8
     var verticalOffset: CGFloat = 0
@@ -9,7 +167,12 @@ struct SubmenuWindowPresenter<Content: View>: NSViewRepresentable {
     let content: () -> Content
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(isPresented: $isPresented, onHoverChanged: onHoverChanged, content: content)
+        Coordinator(
+            controller: controller,
+            isPresented: $isPresented,
+            onHoverChanged: onHoverChanged,
+            content: content
+        )
     }
 
     func makeNSView(context: Context) -> NSView {
@@ -33,21 +196,21 @@ struct SubmenuWindowPresenter<Content: View>: NSViewRepresentable {
 
     @MainActor
     final class Coordinator: NSObject {
+        private let controller: SubmenuWindowController
         private var isPresented: Binding<Bool>
         fileprivate var onHoverChanged: ((Bool) -> Void)?
         fileprivate var content: () -> Content
         fileprivate var horizontalOffset: CGFloat = 8
         fileprivate var verticalOffset: CGFloat = 0
         private weak var anchorView: NSView?
-        private var panel: SubmenuPanel?
-        private var hostingView: HoverTrackingHostingView<AnyView>?
-        private weak var observedParentWindow: NSWindow?
 
         init(
+            controller: SubmenuWindowController,
             isPresented: Binding<Bool>,
             onHoverChanged: ((Bool) -> Void)?,
             content: @escaping () -> Content
         ) {
+            self.controller = controller
             self.isPresented = isPresented
             self.onHoverChanged = onHoverChanged
             self.content = content
@@ -68,18 +231,7 @@ struct SubmenuWindowPresenter<Content: View>: NSViewRepresentable {
         }
 
         func close() {
-            removeObservers()
-
-            if let panel {
-                if let parentWindow = panel.parent {
-                    parentWindow.removeChildWindow(panel)
-                }
-
-                panel.orderOut(nil)
-                self.panel = nil
-            }
-
-            hostingView = nil
+            controller.close()
         }
 
         private func presentIfNeeded() {
@@ -87,132 +239,13 @@ struct SubmenuWindowPresenter<Content: View>: NSViewRepresentable {
                 return
             }
 
-            guard let parentWindow = anchorView.window else {
-                DispatchQueue.main.async { [weak self] in
-                    self?.presentIfNeeded()
-                }
-                return
-            }
-
-            let panel = panel ?? makePanel()
-            let hostingView = hostingView ?? makeHostingView()
-            hostingView.rootView = AnyView(content())
-            panel.contentView = hostingView
-            self.hostingView = hostingView
-
-            hostingView.layoutSubtreeIfNeeded()
-            let fittingSize = hostingView.fittingSize
-            let contentSize = NSSize(
-                width: max(180, fittingSize.width),
-                height: max(1, fittingSize.height)
+            controller.present(
+                relativeTo: anchorView,
+                horizontalOffset: horizontalOffset,
+                verticalOffset: verticalOffset,
+                onHoverChanged: onHoverChanged,
+                content: AnyView(content())
             )
-            panel.setContentSize(contentSize)
-
-            if panel.parent !== parentWindow {
-                panel.parent?.removeChildWindow(panel)
-                parentWindow.addChildWindow(panel, ordered: .above)
-            }
-
-            updatePanelFrame(relativeTo: anchorView, in: parentWindow, panel: panel)
-            panel.orderFront(nil)
-            observeFrameChanges(of: parentWindow)
-        }
-
-        private func makePanel() -> SubmenuPanel {
-            let panel = SubmenuPanel(
-                contentRect: .zero,
-                styleMask: [.borderless, .nonactivatingPanel, .fullSizeContentView],
-                backing: .buffered,
-                defer: false
-            )
-            panel.isOpaque = false
-            panel.backgroundColor = .clear
-            panel.hasShadow = true
-            panel.hidesOnDeactivate = false
-            panel.level = .popUpMenu
-            panel.collectionBehavior = [.transient, .moveToActiveSpace, .ignoresCycle]
-            self.panel = panel
-            return panel
-        }
-
-        private func makeHostingView() -> HoverTrackingHostingView<AnyView> {
-            let hostingView = HoverTrackingHostingView(rootView: AnyView(content()))
-            hostingView.onHoverChanged = { [weak self] isHovered in
-                self?.onHoverChanged?(isHovered)
-            }
-            return hostingView
-        }
-
-        private func observeFrameChanges(of parentWindow: NSWindow) {
-            guard observedParentWindow !== parentWindow else {
-                return
-            }
-
-            removeObservers()
-            observedParentWindow = parentWindow
-
-            NotificationCenter.default.addObserver(
-                self,
-                selector: #selector(handleParentWindowFrameChange),
-                name: NSWindow.didMoveNotification,
-                object: parentWindow
-            )
-            NotificationCenter.default.addObserver(
-                self,
-                selector: #selector(handleParentWindowFrameChange),
-                name: NSWindow.didResizeNotification,
-                object: parentWindow
-            )
-        }
-
-        @objc
-        private func handleParentWindowFrameChange() {
-            repositionPanel()
-        }
-
-        private func repositionPanel() {
-            guard
-                let anchorView,
-                let parentWindow = anchorView.window,
-                let panel
-            else {
-                return
-            }
-
-            updatePanelFrame(relativeTo: anchorView, in: parentWindow, panel: panel)
-        }
-
-        private func updatePanelFrame(relativeTo anchorView: NSView, in parentWindow: NSWindow, panel: NSPanel) {
-            let anchorFrame = anchorView.convert(anchorView.bounds, to: nil)
-            let anchorScreenFrame = parentWindow.convertToScreen(anchorFrame)
-            let visibleFrame = parentWindow.screen?.visibleFrame ?? NSScreen.main?.visibleFrame ?? .infinite
-            let opensRight = anchorScreenFrame.maxX + horizontalOffset + panel.frame.width <= visibleFrame.maxX
-            let x = opensRight
-                ? anchorScreenFrame.maxX + horizontalOffset
-                : anchorScreenFrame.minX - horizontalOffset - panel.frame.width
-            let preferredY = anchorScreenFrame.maxY - panel.frame.height + verticalOffset
-            let y = min(
-                max(preferredY, visibleFrame.minY),
-                visibleFrame.maxY - panel.frame.height
-            )
-            let origin = NSPoint(x: x, y: y)
-            panel.setFrameOrigin(origin)
-        }
-
-        private func removeObservers() {
-            if let observedParentWindow {
-                NotificationCenter.default.removeObserver(
-                    self,
-                    name: NSWindow.didMoveNotification,
-                    object: observedParentWindow
-                )
-                NotificationCenter.default.removeObserver(
-                    self,
-                    name: NSWindow.didResizeNotification,
-                    object: observedParentWindow
-                )
-                self.observedParentWindow = nil
-            }
         }
     }
 }

@@ -9,6 +9,7 @@ struct MenuBarContentView: View {
     }
 
     @ObservedObject var viewModel: MenuBarViewModel
+    let appSubmenuController: SubmenuWindowController
     private static let legendMarkerSize: CGFloat = 7
     private static let primaryMenuWidth: CGFloat = 300
     private static let submenuWidth: CGFloat = 190
@@ -61,6 +62,7 @@ struct MenuBarContentView: View {
                 }
                 .background {
                     SubmenuWindowPresenter(
+                        controller: appSubmenuController,
                         isPresented: $isAppMenuPresented,
                         horizontalOffset: 2,
                         onHoverChanged: { isHovering in

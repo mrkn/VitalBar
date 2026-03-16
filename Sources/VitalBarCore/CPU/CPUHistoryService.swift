@@ -107,8 +107,17 @@ public actor CPUHistoryService: CPUHistoryStreaming {
     }
 
     public func stop() async {
-        workerTask?.cancel()
+        let task = workerTask
         workerTask = nil
+        task?.cancel()
+
+        let activeSubscribers = Array(subscribers.values)
+        subscribers.removeAll()
+        for continuation in activeSubscribers {
+            continuation.finish()
+        }
+
+        await task?.value
     }
 
     public func snapshots() async -> AsyncStream<CPUHistorySnapshot> {

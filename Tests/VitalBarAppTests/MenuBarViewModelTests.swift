@@ -463,6 +463,21 @@ final class MenuBarViewModelTests: XCTestCase {
         viewModel.stop()
     }
 
+    @MainActor
+    func testShutdownStopsServiceAndReleasesPreventSleep() async {
+        let service = MockCPUHistoryService(initialSnapshot: makeSnapshot())
+        let controller = MockPreventSleepController(enabled: true)
+        let viewModel = MenuBarViewModel(service: service, preventSleepController: controller)
+
+        await viewModel.shutdown()
+
+        let stopCallCount = await service.stopCallCount
+        XCTAssertEqual(stopCallCount, 1)
+        XCTAssertEqual(controller.setEnabledCalls, [false])
+        XCTAssertFalse(viewModel.preventSleepEnabled)
+        XCTAssertNil(viewModel.preventSleepMessage)
+    }
+
 
     private func makeSnapshot(
         samples: [CPULoadSample] = [],
