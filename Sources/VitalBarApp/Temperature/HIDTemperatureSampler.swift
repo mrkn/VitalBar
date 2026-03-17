@@ -18,9 +18,11 @@ struct HIDTemperatureSampler: TemperatureSampling {
     private static let preferredOrderedIDs = ["cpu", "gpu", "soc"]
 
     private let api: HIDTemperatureAPI?
+    private let clientStore: HIDTemperatureClientStore?
 
     init(api: HIDTemperatureAPI? = HIDTemperatureAPI.load()) {
         self.api = api
+        self.clientStore = api.map(HIDTemperatureClientStore.init(api:))
     }
 
     func sampleTemperatures() throws -> [TemperatureSensorReading] {
@@ -33,12 +35,12 @@ struct HIDTemperatureSampler: TemperatureSampling {
             "PrimaryUsage": Self.usage,
         ]
 
-        let preferredServices = collectServices(using: api, matching: preferredMatching)
+        let preferredServices = collectServices(matching: preferredMatching)
         let services: [Any]
         if preferredServices.isEmpty {
             // Some systems do not expose temperature services with vendor usage
             // matching; scan all HID services and extract temperature events.
-            services = collectServices(using: api, matching: nil)
+            services = collectServices(matching: nil)
         } else {
             services = preferredServices
         }
@@ -69,20 +71,8 @@ struct HIDTemperatureSampler: TemperatureSampling {
         return Self.aggregate(samples: samples)
     }
 
-    private func collectServices(using api: HIDTemperatureAPI, matching: [String: Any]?) -> [Any] {
-        guard let client = api.create(kCFAllocatorDefault) else {
-            return []
-        }
-
-        if let matching {
-            api.setMatching(client, matching as CFDictionary)
-        }
-
-        guard let services = api.copyServices(client) else {
-            return []
-        }
-
-        return (services as NSArray).map { $0 }
+    private func collectServices(matching: [String: Any]?) -> [Any] {
+        clientStore?.services(matching: matching) ?? []
     }
 
     static func aggregate(samples: [HIDTemperatureSample]) -> [TemperatureSensorReading] {
@@ -152,6 +142,56 @@ struct HIDTemperatureSampler: TemperatureSampling {
         default:
             return fallback
         }
+    }
+}
+
+private final class HIDTemperatureClientStore: @unchecked Sendable {
+    private let api: HIDTemperatureAPI
+    private let lock = NSLock()
+    private var preferredClient: CFTypeRef?
+    private var fallbackClient: CFTypeRef?
+
+    init(api: HIDTemperatureAPI) {
+        self.api = api
+    }
+
+    func services(matching: [String: Any]?) -> [Any] {
+        guard let client = client(matching: matching) else {
+            return []
+        }
+
+        guard let services = api.copyServices(client) else {
+            return []
+        }
+
+        return (services as NSArray).map { $0 }
+    }
+
+    private func client(matching: [String: Any]?) -> CFTypeRef? {
+        lock.lock()
+        defer { lock.unlock() }
+
+        if let matching {
+            if let preferredClient {
+                return preferredClient
+            }
+
+            guard let client = api.create(kCFAllocatorDefault) else {
+                return nil
+            }
+
+            api.setMatching(client, matching as CFDictionary)
+            preferredClient = client
+            return client
+        }
+
+        if let fallbackClient {
+            return fallbackClient
+        }
+
+        let client = api.create(kCFAllocatorDefault)
+        fallbackClient = client
+        return client
     }
 }
 
