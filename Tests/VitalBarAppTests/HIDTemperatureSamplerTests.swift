@@ -6,17 +6,17 @@ final class HIDTemperatureSamplerTests: XCTestCase {
         HIDTemperatureAPITestHook.reset(preferredClientReturnsNoServices: false)
         let api = HIDTemperatureAPI(
             create: { _ in
-                HIDTemperatureAPITestHook.create()
+                Unmanaged.passRetained(HIDTemperatureAPITestHook.create())
             },
             setMatching: { _, _ in },
             copyServices: { _ in
-                HIDTemperatureAPITestHook.copyServices(for: "client-1")
+                Unmanaged.passRetained(HIDTemperatureAPITestHook.copyServices(for: "client-1"))
             },
             copyProperty: { _, _ in
-                "PMU tdie2" as CFTypeRef
+                Unmanaged.passRetained("PMU tdie2" as CFTypeRef)
             },
             copyEvent: { _, _, _, _ in
-                "event" as CFTypeRef
+                Unmanaged.passRetained("event" as CFTypeRef)
             },
             eventFloatValue: { _, _ in
                 56.0
@@ -35,17 +35,17 @@ final class HIDTemperatureSamplerTests: XCTestCase {
         HIDTemperatureAPITestHook.reset(preferredClientReturnsNoServices: true)
         let api = HIDTemperatureAPI(
             create: { _ in
-                HIDTemperatureAPITestHook.create()
+                Unmanaged.passRetained(HIDTemperatureAPITestHook.create())
             },
             setMatching: { _, _ in },
             copyServices: { client in
-                HIDTemperatureAPITestHook.copyServices(for: client as? String)
+                Unmanaged.passRetained(HIDTemperatureAPITestHook.copyServices(for: client as? String))
             },
             copyProperty: { _, _ in
-                "PMU tdev4" as CFTypeRef
+                Unmanaged.passRetained("PMU tdev4" as CFTypeRef)
             },
             copyEvent: { _, _, _, _ in
-                "event" as CFTypeRef
+                Unmanaged.passRetained("event" as CFTypeRef)
             },
             eventFloatValue: { _, _ in
                 44.0

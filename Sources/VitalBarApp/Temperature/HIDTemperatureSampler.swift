@@ -53,8 +53,9 @@ struct HIDTemperatureSampler: TemperatureSampling {
 
         for service in services {
             let serviceRef = service as CFTypeRef
-            guard
-                let event = api.copyEvent(serviceRef, Int64(Self.eventTypeTemperature), 0, 0)
+            guard let event = api
+                .copyEvent(serviceRef, Int64(Self.eventTypeTemperature), 0, 0)?
+                .takeRetainedValue()
             else {
                 continue
             }
@@ -64,7 +65,9 @@ struct HIDTemperatureSampler: TemperatureSampling {
                 continue
             }
 
-            let product = (api.copyProperty(serviceRef, "Product" as CFString) as? String) ?? "Temperature Sensor"
+            let product = (
+                api.copyProperty(serviceRef, "Product" as CFString)?.takeRetainedValue() as? String
+            ) ?? "Temperature Sensor"
             samples.append(HIDTemperatureSample(product: product, celsius: value))
         }
 
@@ -160,7 +163,7 @@ private final class HIDTemperatureClientStore: @unchecked Sendable {
             return []
         }
 
-        guard let services = api.copyServices(client) else {
+        guard let services = api.copyServices(client)?.takeRetainedValue() else {
             return []
         }
 
@@ -176,7 +179,7 @@ private final class HIDTemperatureClientStore: @unchecked Sendable {
                 return preferredClient
             }
 
-            guard let client = api.create(kCFAllocatorDefault) else {
+            guard let client = api.create(kCFAllocatorDefault)?.takeRetainedValue() else {
                 return nil
             }
 
@@ -189,23 +192,23 @@ private final class HIDTemperatureClientStore: @unchecked Sendable {
             return fallbackClient
         }
 
-        let client = api.create(kCFAllocatorDefault)
+        let client = api.create(kCFAllocatorDefault)?.takeRetainedValue()
         fallbackClient = client
         return client
     }
 }
 
 struct HIDTemperatureAPI {
-    typealias CreateFn = @convention(c) (_ allocator: CFAllocator?) -> CFTypeRef?
+    typealias CreateFn = @convention(c) (_ allocator: CFAllocator?) -> Unmanaged<CFTypeRef>?
     typealias SetMatchingFn = @convention(c) (_ client: CFTypeRef, _ matching: CFDictionary) -> Void
-    typealias CopyServicesFn = @convention(c) (_ client: CFTypeRef) -> CFArray?
-    typealias CopyPropertyFn = @convention(c) (_ service: CFTypeRef, _ property: CFString) -> CFTypeRef?
+    typealias CopyServicesFn = @convention(c) (_ client: CFTypeRef) -> Unmanaged<CFArray>?
+    typealias CopyPropertyFn = @convention(c) (_ service: CFTypeRef, _ property: CFString) -> Unmanaged<CFTypeRef>?
     typealias CopyEventFn = @convention(c) (
         _ service: CFTypeRef,
         _ type: Int64,
         _ matching: Int64,
         _ options: Int64
-    ) -> CFTypeRef?
+    ) -> Unmanaged<CFTypeRef>?
     typealias EventFloatValueFn = @convention(c) (_ event: CFTypeRef, _ field: Int64) -> Double
 
     let create: CreateFn
